@@ -118,28 +118,28 @@ export function StressTrainer({ wordIndices, onComplete }: StressTrainerProps) {
         </span>
       </div>
 
-      <div className="flex flex-wrap justify-center gap-1">
+      <div className="flex flex-wrap justify-center gap-0.5 leading-none tracking-tight">
         {text.split("").map((ch, i) => {
           const state = letterStates[i]
           const isVowelLetter = isVowel(ch)
 
           let className =
-            "inline-flex size-10 items-center justify-center rounded-md text-lg font-medium transition-all select-none"
+            "inline-flex items-center justify-center text-2xl font-medium transition-all select-none"
 
           if (state === "correct") {
             className +=
-              " border-2 border-green-500 bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-300"
+              " size-10 rounded-md border-2 border-green-500 bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-300"
           } else if (state === "wrong") {
             className +=
-              " border-2 border-red-500 bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300"
+              " size-10 rounded-md border-2 border-red-500 bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300"
           } else if (state === "revealed") {
             className +=
-              " border-2 border-amber-500 bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300"
+              " size-10 rounded-md border-2 border-amber-500 bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300"
           } else if (isVowelLetter) {
             className +=
-              " cursor-pointer border border-border hover:border-primary hover:bg-muted"
+              " size-10 cursor-pointer rounded-md border border-border hover:border-primary hover:bg-muted"
           } else {
-            className += " text-muted-foreground/50"
+            className += " text-foreground"
           }
 
           return (

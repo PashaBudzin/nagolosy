@@ -1,5 +1,6 @@
 import type { WordResult } from "@/types"
 import { Button } from "@/components/ui/button"
+import { displayWord } from "@/lib/stress"
 
 interface SessionResultsProps {
   results: WordResult[]
@@ -57,7 +58,7 @@ export function SessionResults({ results, durationMs, onRestart, onHome }: Sessi
             >
               {r.correct ? "✓" : "✗"}
             </span>
-            <span className="font-medium">{r.word}</span>
+            <span className="font-medium">{displayWord(r.word, r.stressIndices)}</span>
           </div>
         ))}
       </div>

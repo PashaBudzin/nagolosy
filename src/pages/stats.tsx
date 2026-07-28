@@ -1,6 +1,7 @@
 import { useNavigate } from "react-router-dom"
 import { useSessions } from "@/hooks/use-sessions"
 import { Button } from "@/components/ui/button"
+import { displayWord } from "@/lib/stress"
 
 export function Stats() {
   const navigate = useNavigate()
@@ -56,7 +57,7 @@ export function Stats() {
                   key={w.word}
                   className="grid grid-cols-[1fr_auto] gap-2 px-4 py-2 text-sm"
                 >
-                  <span className="font-medium">{w.word}</span>
+                  <span className="font-medium">{displayWord(w.word, w.stressIndices)}</span>
                   <div className="flex items-center gap-1">
                     <span
                       className={

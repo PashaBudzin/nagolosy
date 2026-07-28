@@ -35,6 +35,16 @@ export function getWordData(raw: string): ParsedWord {
   return parseWord(raw)
 }
 
+const COMBINING_ACUTE = "\u0301"
+
+export function displayWord(text: string, stressIndices: number[]): string {
+  const chars = text.split("")
+  for (const idx of stressIndices.sort((a, b) => b - a)) {
+    chars.splice(idx + 1, 0, COMBINING_ACUTE)
+  }
+  return chars.join("")
+}
+
 export function shuffleArray<T>(arr: T[]): T[] {
   const result = [...arr]
   for (let i = result.length - 1; i > 0; i--) {
