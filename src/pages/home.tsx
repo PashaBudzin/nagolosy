@@ -1,11 +1,19 @@
 import { useNavigate } from "react-router-dom"
 import { GROUPS } from "@/data/groups"
 import { Button } from "@/components/ui/button"
+import { useSessions } from "@/hooks/use-sessions"
 
 export function Home() {
   const navigate = useNavigate()
+  const { getProblematicWordIndices } = useSessions()
 
   const allWordIndex = GROUPS.flatMap((g) => g.wordIndices)
+
+  const handleProblematic = (count: number) => {
+    const indices = getProblematicWordIndices(count)
+    if (indices.length === 0) return
+    navigate("/test", { state: { wordIndices: indices } })
+  }
 
   return (
     <div className="mx-auto flex max-w-lg flex-col gap-4 p-6">
@@ -44,6 +52,21 @@ export function Home() {
       >
         Усі слова ({allWordIndex.length})
       </Button>
+
+      <div className="mt-4 space-y-2">
+        <p className="text-sm font-medium">Проблемні слова</p>
+        <div className="flex gap-2">
+          <Button variant="secondary" onClick={() => handleProblematic(10)}>
+            10 слів
+          </Button>
+          <Button variant="secondary" onClick={() => handleProblematic(15)}>
+            15 слів
+          </Button>
+          <Button variant="secondary" onClick={() => handleProblematic(30)}>
+            30 слів
+          </Button>
+        </div>
+      </div>
 
       <Button
         variant="ghost"

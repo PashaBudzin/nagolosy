@@ -3,6 +3,8 @@ import type { SessionData, WordStats } from "@/types"
 import { WORDS_RAW } from "@/data/words"
 import { getWordData } from "@/lib/stress"
 
+const PROBLEMATIC_MAX = 30
+
 const STORAGE_KEY = "nagolosy-sessions"
 const MAX_SESSIONS = 5
 
@@ -94,5 +96,27 @@ export function useSessions() {
     })
   }, [])
 
-  return { sessions, addSession, clearSessions, getWordStats }
+  const getProblematicWordIndices = useCallback((count: number): number[] => {
+    const stats = getWordStats()
+    const sorted = stats
+      .filter((s) => s.total > 0)
+      .sort((a, b) => a.correct / a.total - b.correct / b.total)
+      .slice(0, Math.min(count, PROBLEMATIC_MAX))
+
+    const indices: number[] = []
+    for (const stat of sorted) {
+      for (let i = 0; i < WORDS_RAW.length; i++) {
+        const { text, stressIndices } = getWordData(WORDS_RAW[i])
+        if (
+          text === stat.word &&
+          JSON.stringify(stressIndices) === JSON.stringify(stat.stressIndices)
+        ) {
+          indices.push(i)
+        }
+      }
+    }
+    return indices
+  }, [getWordStats])
+
+  return { sessions, addSession, clearSessions, getWordStats, getProblematicWordIndices }
 }
