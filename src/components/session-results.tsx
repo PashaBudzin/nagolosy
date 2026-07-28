@@ -58,11 +58,11 @@ export function SessionResults({ results, durationMs, onRestart, onHome }: Sessi
             >
               {r.correct ? "✓" : "✗"}
             </span>
-            <span className="font-medium">
+            <span className="flex items-center gap-2 font-medium">
               {displayWord(r.word, r.stressIndices)}
               {r.explanation && (
-                <span className="ml-2 text-xs text-muted-foreground">
-                  ({r.explanation})
+                <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
+                  {r.explanation}
                 </span>
               )}
             </span>

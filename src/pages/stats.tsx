@@ -57,11 +57,11 @@ export function Stats() {
                   key={w.word}
                   className="grid grid-cols-[1fr_auto] gap-2 px-4 py-2 text-sm"
                 >
-                  <span className="font-medium">
+                  <span className="flex flex-wrap items-center gap-2 font-medium">
                     {displayWord(w.word, w.stressIndices)}
                     {w.explanation && (
-                      <span className="ml-2 text-xs text-muted-foreground">
-                        ({w.explanation})
+                      <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
+                        {w.explanation}
                       </span>
                     )}
                   </span>

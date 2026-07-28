@@ -119,9 +119,9 @@ export function StressTrainer({ wordIndices, onComplete }: StressTrainerProps) {
       </div>
 
       {explanation && (
-        <p className="text-center text-sm text-muted-foreground">
+        <div className="rounded-md bg-muted px-3 py-1.5 text-center text-xs text-muted-foreground">
           {explanation}
-        </p>
+        </div>
       )}
 
       <div className="flex flex-wrap justify-center gap-0.5 leading-none tracking-tight">
