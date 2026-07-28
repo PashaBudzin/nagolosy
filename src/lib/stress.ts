@@ -5,9 +5,11 @@ const UKRAINIAN_UPPER = new Set(
 export interface ParsedWord {
   text: string
   stressIndices: number[]
+  explanation?: string
 }
 
 export function parseWord(raw: string): ParsedWord {
+  const explanation = raw.match(/\((.+?)\)/)?.[1]?.trim()
   const clean = raw.replace(/\(.*?\)/g, "").trim()
 
   const stressIndices: number[] = []
@@ -28,7 +30,7 @@ export function parseWord(raw: string): ParsedWord {
     stressIndices.shift()
   }
 
-  return { text: chars.join(""), stressIndices }
+  return { text: chars.join(""), stressIndices, explanation }
 }
 
 export function getWordData(raw: string): ParsedWord {

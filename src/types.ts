@@ -2,6 +2,7 @@ export interface WordResult {
   word: string
   stressIndices: number[]
   correct: boolean
+  explanation?: string
 }
 
 export interface SessionData {
@@ -21,6 +22,7 @@ export interface WordHistoryEntry {
 export interface WordStats {
   word: string
   stressIndices: number[]
+  explanation?: string
   total: number
   correct: number
   history: WordHistoryEntry[]

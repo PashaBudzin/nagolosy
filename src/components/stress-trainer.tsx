@@ -49,7 +49,7 @@ export function StressTrainer({ wordIndices, onComplete }: StressTrainerProps) {
   const shuffled = useMemo(() => shuffleArray(wordIndices), [wordIndices])
 
   const currentRaw = WORDS_RAW[shuffled[currentIndex]]
-  const { text, stressIndices } = useMemo(
+  const { text, stressIndices, explanation } = useMemo(
     () => getWordData(currentRaw),
     [currentRaw],
   )
@@ -84,10 +84,10 @@ export function StressTrainer({ wordIndices, onComplete }: StressTrainerProps) {
 
       setResults((prev) => [
         ...prev,
-        { word: text, stressIndices, correct: isCorrect },
+        { word: text, stressIndices, correct: isCorrect, explanation },
       ])
     },
-    [feedback, stressIndices, text],
+    [feedback, stressIndices, text, explanation],
   )
 
   const handleNext = useCallback(() => {
@@ -117,6 +117,12 @@ export function StressTrainer({ wordIndices, onComplete }: StressTrainerProps) {
           ✗ {wrongCount}
         </span>
       </div>
+
+      {explanation && (
+        <p className="text-center text-sm text-muted-foreground">
+          {explanation}
+        </p>
+      )}
 
       <div className="flex flex-wrap justify-center gap-0.5 leading-none tracking-tight">
         {text.split("").map((ch, i) => {

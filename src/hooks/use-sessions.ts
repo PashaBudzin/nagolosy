@@ -56,21 +56,27 @@ export function useSessions() {
 
   const getWordStats = useCallback((): WordStats[] => {
     const sessions = getStored()
+
+    const matchKey = (word: string, indices: number[]) =>
+      `${word}|${JSON.stringify(indices)}`
+
     const map = new Map<
       string,
-      { stressIndices: number[]; history: { correct: boolean; timestamp: number; sessionId: string }[] }
+      { word: string; stressIndices: number[]; explanation?: string; history: WordStats["history"] }
     >()
 
     for (const wordRaw of WORDS_RAW) {
-      const { text, stressIndices } = getWordData(wordRaw)
-      if (!map.has(text)) {
-        map.set(text, { stressIndices, history: [] })
+      const { text, stressIndices, explanation } = getWordData(wordRaw)
+      const key = matchKey(text, stressIndices)
+      if (!map.has(key)) {
+        map.set(key, { word: text, stressIndices, explanation, history: [] })
       }
     }
 
     for (const session of sessions) {
       for (const result of session.results) {
-        const entry = map.get(result.word)
+        const key = matchKey(result.word, result.stressIndices)
+        const entry = map.get(key)
         if (entry) {
           entry.history.push({
             correct: result.correct,
@@ -81,16 +87,10 @@ export function useSessions() {
       }
     }
 
-    return Array.from(map.entries()).map(([word, data]) => {
-      const total = data.history.length
-      const correct = data.history.filter((h) => h.correct).length
-      return {
-        word,
-        stressIndices: data.stressIndices,
-        total,
-        correct,
-        history: data.history,
-      }
+    return Array.from(map.values()).map((entry) => {
+      const total = entry.history.length
+      const correct = entry.history.filter((h) => h.correct).length
+      return { ...entry, total, correct }
     })
   }, [])
 

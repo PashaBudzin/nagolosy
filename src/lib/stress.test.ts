@@ -6,6 +6,7 @@ describe("parseWord", () => {
     expect(parseWord("агронОмія")).toEqual({
       text: "агрономія",
       stressIndices: [5],
+      explanation: undefined,
     })
   })
 
@@ -13,6 +14,7 @@ describe("parseWord", () => {
     expect(parseWord("Аркушик")).toEqual({
       text: "аркушик",
       stressIndices: [0],
+      explanation: undefined,
     })
   })
 
@@ -26,6 +28,7 @@ describe("parseWord", () => {
     expect(parseWord("алфАвІт")).toEqual({
       text: "алфавіт",
       stressIndices: [3, 5],
+      explanation: undefined,
     })
   })
 
@@ -34,7 +37,7 @@ describe("parseWord", () => {
     expect(result.stressIndices).toEqual([3, 5])
   })
 
-  it("strips parenthetical content", () => {
+  it("strips parenthetical content from text", () => {
     expect(parseWord("де-Юре").text).toBe("де-юре")
   })
 
@@ -45,6 +48,26 @@ describe("parseWord", () => {
   it("preserves non-letter characters (hyphen, apostrophe)", () => {
     const result = parseWord("тім'яний")
     expect(result.text).toContain("'")
+  })
+
+  it("extracts explanation from parenthetical content", () => {
+    expect(parseWord("вИгода (користь)")).toEqual({
+      text: "вигода",
+      stressIndices: [1],
+      explanation: "користь",
+    })
+  })
+
+  it("extracts multi-word explanation", () => {
+    expect(parseWord("хАос (у міфології: стихія)")).toEqual({
+      text: "хаос",
+      stressIndices: [1],
+      explanation: "у міфології: стихія",
+    })
+  })
+
+  it("returns undefined explanation when no parentheses", () => {
+    expect(parseWord("бЕшкет").explanation).toBeUndefined()
   })
 })
 
