@@ -62,9 +62,5 @@ export function SessionPage<TResult>({
     )
   }
 
-  return (
-    <div className="p-6">
-      <Trainer indices={indices} onComplete={handleComplete} />
-    </div>
-  )
+  return <Trainer indices={indices} onComplete={handleComplete} />
 }
