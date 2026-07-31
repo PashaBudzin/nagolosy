@@ -1,11 +1,12 @@
-import { useState, useCallback, useMemo, useEffect, useRef } from "react"
+import { useState, useCallback, useMemo } from "react"
 import type { WordResult } from "@/types"
 import { WORDS_RAW } from "@/data/words"
 import { getWordData, shuffleArray } from "@/lib/stress"
-import { Button } from "@/components/ui/button"
+import { useTimer } from "@/hooks/use-timer"
+import { TrainerShell, type Feedback } from "@/components/trainer-shell"
 
 interface StressTrainerProps {
-  wordIndices: number[]
+  indices: number[]
   onComplete: (results: WordResult[], durationMs: number) => void
 }
 
@@ -20,33 +21,17 @@ function isVowel(ch: string) {
   return VOWELS.has(ch)
 }
 
-function formatTime(ms: number) {
-  const s = Math.floor(ms / 1000)
-  const m = Math.floor(s / 60)
-  const sec = s % 60
-  return `${m}:${sec.toString().padStart(2, "0")}`
-}
-
-export function StressTrainer({ wordIndices, onComplete }: StressTrainerProps) {
+export function StressTrainer({ indices, onComplete }: StressTrainerProps) {
   const [currentIndex, setCurrentIndex] = useState(0)
   const [results, setResults] = useState<WordResult[]>([])
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null)
-  const [feedback, setFeedback] = useState<"idle" | "correct" | "wrong">("idle")
-  const [elapsedMs, setElapsedMs] = useState(0)
-  const startTimeRef = useRef(0)
-
-  useEffect(() => {
-    startTimeRef.current = Date.now()
-    const interval = setInterval(() => {
-      setElapsedMs(Date.now() - startTimeRef.current)
-    }, 200)
-    return () => clearInterval(interval)
-  }, [])
+  const [feedback, setFeedback] = useState<Feedback>("idle")
+  const { elapsedMs, now } = useTimer()
 
   const correctCount = results.filter((r) => r.correct).length
   const wrongCount = results.length - correctCount
 
-  const shuffled = useMemo(() => shuffleArray(wordIndices), [wordIndices])
+  const shuffled = useMemo(() => shuffleArray(indices), [indices])
 
   const currentRaw = WORDS_RAW[shuffled[currentIndex]]
   const { text, stressIndices, explanation } = useMemo(
@@ -93,31 +78,24 @@ export function StressTrainer({ wordIndices, onComplete }: StressTrainerProps) {
   const handleNext = useCallback(() => {
     const next = currentIndex + 1
     if (next >= shuffled.length) {
-      const duration = Date.now() - startTimeRef.current
-      onComplete(results, duration)
+      onComplete(results, now())
       return
     }
     setCurrentIndex(next)
     setSelectedIndex(null)
     setFeedback("idle")
-  }, [currentIndex, shuffled.length, onComplete, results])
+  }, [currentIndex, shuffled.length, onComplete, results, now])
 
   return (
-    <div className="flex flex-col items-center gap-6">
-      <div className="flex w-full max-w-sm items-center justify-between text-sm text-muted-foreground">
-        <span>{currentIndex + 1} / {shuffled.length}</span>
-        <span className="tabular-nums">{formatTime(elapsedMs)}</span>
-      </div>
-
-      <div className="flex gap-4 text-sm">
-        <span className="text-green-600 dark:text-green-400">
-          ✓ {correctCount}
-        </span>
-        <span className="text-red-600 dark:text-red-400">
-          ✗ {wrongCount}
-        </span>
-      </div>
-
+    <TrainerShell
+      elapsedMs={elapsedMs}
+      currentIndex={currentIndex}
+      total={shuffled.length}
+      correctCount={correctCount}
+      wrongCount={wrongCount}
+      feedback={feedback}
+      onNext={handleNext}
+    >
       {explanation && (
         <div className="rounded-md bg-muted px-3 py-1.5 text-center text-xs text-muted-foreground">
           {explanation}
@@ -161,25 +139,6 @@ export function StressTrainer({ wordIndices, onComplete }: StressTrainerProps) {
           )
         })}
       </div>
-
-      {feedback !== "idle" && (
-        <div className="flex flex-col items-center gap-3">
-          <p
-            className={
-              feedback === "correct"
-                ? "text-green-600 dark:text-green-400"
-                : "text-red-600 dark:text-red-400"
-            }
-          >
-            {feedback === "correct"
-              ? "Правильно!"
-              : "Помилка!"}
-          </p>
-          <Button onClick={handleNext}>
-            {currentIndex + 1 >= shuffled.length ? "Результат" : "Далі"}
-          </Button>
-        </div>
-      )}
-    </div>
+    </TrainerShell>
   )
 }

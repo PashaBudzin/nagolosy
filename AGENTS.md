@@ -34,13 +34,13 @@ Recommended verification order for changes: `bun lint && bun typecheck && bun te
 ```
 src/
   main.tsx            # entry: renders <App> inside <ThemeProvider>
-  App.tsx             # BrowserRouter with 3 routes: /, /test, /stats
-  pages/              # home.tsx, test.tsx, stats.tsx
-  components/         # stress-trainer.tsx, session-results.tsx, theme-provider.tsx
+  App.tsx             # BrowserRouter with 5 routes: /, /test, /stats, /idiom-test, /idiom-stats
+  pages/              # home.tsx, test.tsx, stats.tsx, idiom-test.tsx, idiom-stats.tsx
+  components/         # stress-trainer.tsx, session-results.tsx, idiom-trainer.tsx, idiom-session-results.tsx, trainer-shell.tsx, session-results-shell.tsx, session-page.tsx, stats-page.tsx, theme-provider.tsx
   components/ui/      # shadcn primitives (currently only button.tsx)
-  hooks/              # use-sessions.ts (localStorage persistence)
-  lib/                # stress.ts (word parsing), utils.ts (cn)
-  data/               # words.ts (word list), groups.ts (group definitions)
+  hooks/              # use-sessions.ts, use-idiom-sessions.ts (localStorage persistence), use-timer.ts
+  lib/                # stress.ts (word parsing), idioms.ts (idiom parsing + quiz options), session-store.ts, session-stats.ts, format.ts, utils.ts (cn)
+  data/               # words.ts (word list), groups.ts (group definitions), idioms.ts (idiom list), idiom-groups.ts (idiom group definitions)
   types.ts            # shared types
   index.css           # Tailwind entry + CSS variables + dark mode
 ```
@@ -61,17 +61,36 @@ src/
 - Parenthetical content = explanation (e.g. `"вИгода (користь)"` → explanation `"користь"`).
 - Homonyms with different stress **must** have disambiguating explanations (enforced by test in `words.test.ts`).
 - Words are grouped in `src/data/groups.ts`; not all groups are equal size (group 8 has only 23 words).
+- Idioms are raw strings `"Idiom – definition"` (en-dash separator) in `idioms.ts`; `parseIdiom()` in `src/lib/idioms.ts` splits them.
+- Idiom quiz options are built by `buildQuizOptions()` in `src/lib/idioms.ts` — correct definition + unique distractors (definitions are deduped, so near-identical idioms never collide as options).
+- Idioms are grouped in `src/data/idiom-groups.ts` (11 groups of ~22 entries).
+
+## Shared infra
+
+Both trainers (words + idioms) are thin wrappers around shared shells that own the common session UX:
+
+- `src/components/trainer-shell.tsx` — progress header, timer, ✓/✗ counts, feedback + next button. Trainers inject their question UI as `children`.
+- `src/components/session-results-shell.tsx` — results header (%, ✓/✗, time) + restart/home buttons + scrollable list; rows injected via `renderRow`.
+- `src/components/session-page.tsx` — generic trainer→results page flow: reads indices from router state, redirects to `/` when empty, saves the session on completion. `test.tsx` / `idiom-test.tsx` are thin config wrappers.
+- `src/components/stats-page.tsx` — generic stats page (sort, group/status/attempted/explanation/date filters, totals, clear). `stats.tsx` / `idiom-stats.tsx` are thin config wrappers; the words page alone passes an `explanation` getter to enable that filter.
+- `src/lib/session-store.ts` — `createSessionStore<T>()` factory: localStorage key + max-sessions cap live here; `useSessionStore()` wraps it with `useSyncExternalStore`.
+- `src/lib/session-stats.ts` — `aggregateStats()` (seeds + sessions → per-item stats) and `pickProblematic()` (worst-ratio items, capped).
+- `src/hooks/use-timer.ts` — elapsed-milliseconds timer + `now()` callback.
+- `src/lib/format.ts` — `formatTime()` (mm:ss).
 
 ## Testing
 
-- Vitest, tests colocated as `*.test.ts` (`src/lib/stress.test.ts`, `src/data/words.test.ts`).
+- Vitest, tests colocated as `*.test.ts` (`src/lib/stress.test.ts`, `src/data/words.test.ts`, `src/lib/idioms.test.ts`, `src/data/idioms.test.ts`).
 - No separate `__tests__/` dir, no coverage config.
 - `words.test.ts` validates dataset integrity (every entry has stress marker, stress indices in bounds, homonyms have explanations, valid characters).
+- `idioms.test.ts` validates dataset integrity (every entry splits into idiom + definition, no duplicate idioms, no stray whitespace).
 
 ## State persistence
 
-- Sessions stored in `localStorage` under key `nagolosy-sessions`, max 5 sessions.
-- `useSessions()` hook uses `useSyncExternalStore` for reactivity.
+- Session storage settings (storage key, max sessions) are defined in `createSessionStore()` in `src/lib/session-store.ts`.
+- Word sessions stored in `localStorage` under key `nagolosy-sessions`, max 5 sessions.
+- Idiom sessions stored under key `nagolosy-idiom-sessions`, max 5 sessions (separate from word sessions).
+- `useSessions()` / `useIdiomSessions()` hooks use `useSyncExternalStore` for reactivity.
 
 ## Deployment
 
