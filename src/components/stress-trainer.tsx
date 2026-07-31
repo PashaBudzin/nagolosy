@@ -1,9 +1,10 @@
-import { useState, useCallback, useMemo } from "react"
+import { useState, useCallback, useMemo, useEffect } from "react"
 import type { WordResult } from "@/types"
 import { WORDS_RAW } from "@/data/words"
 import { getWordData, shuffleArray } from "@/lib/stress"
 import { useTimer } from "@/hooks/use-timer"
 import { TrainerShell, type Feedback } from "@/components/trainer-shell"
+import { Kbd } from "@/components/ui/kbd"
 
 interface StressTrainerProps {
   indices: number[]
@@ -13,8 +14,26 @@ interface StressTrainerProps {
 type LetterState = "idle" | "correct" | "wrong" | "revealed"
 
 const VOWELS = new Set([
-  "а", "е", "є", "и", "і", "ї", "о", "у", "ю", "я",
-  "А", "Е", "Є", "И", "І", "Ї", "О", "У", "Ю", "Я",
+  "а",
+  "е",
+  "є",
+  "и",
+  "і",
+  "ї",
+  "о",
+  "у",
+  "ю",
+  "я",
+  "А",
+  "Е",
+  "Є",
+  "И",
+  "І",
+  "Ї",
+  "О",
+  "У",
+  "Ю",
+  "Я",
 ])
 
 function isVowel(ch: string) {
@@ -36,7 +55,7 @@ export function StressTrainer({ indices, onComplete }: StressTrainerProps) {
   const currentRaw = WORDS_RAW[shuffled[currentIndex]]
   const { text, stressIndices, explanation } = useMemo(
     () => getWordData(currentRaw),
-    [currentRaw],
+    [currentRaw]
   )
 
   const letterStates = useMemo((): LetterState[] => {
@@ -72,7 +91,7 @@ export function StressTrainer({ indices, onComplete }: StressTrainerProps) {
         { word: text, stressIndices, correct: isCorrect, explanation },
       ])
     },
-    [feedback, stressIndices, text, explanation],
+    [feedback, stressIndices, text, explanation]
   )
 
   const handleNext = useCallback(() => {
@@ -86,6 +105,41 @@ export function StressTrainer({ indices, onComplete }: StressTrainerProps) {
     setFeedback("idle")
   }, [currentIndex, shuffled.length, onComplete, results, now])
 
+  const vowelIndices = useMemo(
+    () =>
+      text
+        .split("")
+        .map((ch, i) => (isVowel(ch) ? i : -1))
+        .filter((i) => i !== -1),
+    [text]
+  )
+
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (feedback !== "idle") {
+        if (e.key === "Enter") handleNext()
+        return
+      }
+      if (e.key >= "1" && e.key <= "9") {
+        const idx = Number(e.key) - 1
+        if (idx < vowelIndices.length) handleLetterClick(vowelIndices[idx])
+      }
+    }
+    window.addEventListener("keydown", onKeyDown)
+    return () => window.removeEventListener("keydown", onKeyDown)
+  }, [feedback, handleNext, handleLetterClick, vowelIndices])
+
+  const hints = (
+    <>
+      <span className="flex items-center gap-1">
+        <Kbd>1</Kbd>–<Kbd>9</Kbd> вибрати голосну
+      </span>
+      <span className="flex items-center gap-1">
+        <Kbd>Enter</Kbd> далі
+      </span>
+    </>
+  )
+
   return (
     <TrainerShell
       elapsedMs={elapsedMs}
@@ -95,6 +149,7 @@ export function StressTrainer({ indices, onComplete }: StressTrainerProps) {
       wrongCount={wrongCount}
       feedback={feedback}
       onNext={handleNext}
+      hints={hints}
     >
       {explanation && (
         <div className="rounded-md bg-muted px-3 py-1.5 text-center text-xs text-muted-foreground">

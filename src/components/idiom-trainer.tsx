@@ -1,9 +1,10 @@
-import { useState, useCallback, useMemo } from "react"
+import { useState, useCallback, useMemo, useEffect } from "react"
 import type { IdiomResult } from "@/types"
 import { IDIOM_ENTRIES, buildQuizOptions } from "@/lib/idioms"
 import { shuffleArray } from "@/lib/stress"
 import { useTimer } from "@/hooks/use-timer"
 import { TrainerShell, type Feedback } from "@/components/trainer-shell"
+import { Kbd } from "@/components/ui/kbd"
 
 interface IdiomTrainerProps {
   indices: number[]
@@ -26,7 +27,7 @@ export function IdiomTrainer({ indices, onComplete }: IdiomTrainerProps) {
 
   const options = useMemo(
     () => buildQuizOptions(entry.definition),
-    [entry.definition],
+    [entry.definition]
   )
 
   const handleSelect = useCallback(
@@ -48,7 +49,7 @@ export function IdiomTrainer({ indices, onComplete }: IdiomTrainerProps) {
         },
       ])
     },
-    [feedback, entry, options],
+    [feedback, entry, options]
   )
 
   const handleNext = useCallback(() => {
@@ -62,6 +63,32 @@ export function IdiomTrainer({ indices, onComplete }: IdiomTrainerProps) {
     setFeedback("idle")
   }, [currentIndex, shuffled.length, onComplete, results, now])
 
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (feedback !== "idle") {
+        if (e.key === "Enter") handleNext()
+        return
+      }
+      if (e.key >= "1" && e.key <= "4") {
+        const idx = Number(e.key) - 1
+        if (idx < options.length) handleSelect(options[idx])
+      }
+    }
+    window.addEventListener("keydown", onKeyDown)
+    return () => window.removeEventListener("keydown", onKeyDown)
+  }, [feedback, handleNext, handleSelect, options])
+
+  const hints = (
+    <>
+      <span className="flex items-center gap-1">
+        <Kbd>1</Kbd>–<Kbd>4</Kbd> вибрати відповідь
+      </span>
+      <span className="flex items-center gap-1">
+        <Kbd>Enter</Kbd> далі
+      </span>
+    </>
+  )
+
   return (
     <TrainerShell
       elapsedMs={elapsedMs}
@@ -71,6 +98,7 @@ export function IdiomTrainer({ indices, onComplete }: IdiomTrainerProps) {
       wrongCount={wrongCount}
       feedback={feedback}
       onNext={handleNext}
+      hints={hints}
     >
       <p className="text-sm text-muted-foreground">Що означає фразеологізм?</p>
 
