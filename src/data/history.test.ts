@@ -54,4 +54,25 @@ describe("HISTORY_GROUPS dataset", () => {
     }
     expect(total).toBe(HISTORY_FACTS.length)
   })
+
+  it("has exactly 3 subgroups per group, jointly covering its indices", () => {
+    for (const group of HISTORY_GROUPS) {
+      expect(group.subgroups.length).toBe(3)
+      const seen = new Set<number>()
+      let total = 0
+      for (const sub of group.subgroups) {
+        expect(sub.historyIndices.length).toBeGreaterThan(0)
+        for (const idx of sub.historyIndices) {
+          expect(idx).toBeLessThan(HISTORY_FACTS.length)
+          expect(seen.has(idx)).toBe(false)
+          seen.add(idx)
+          total++
+        }
+      }
+      expect(total).toBe(group.historyIndices.length)
+      expect(Array.from(seen).sort((a, b) => a - b)).toEqual(
+        [...group.historyIndices].sort((a, b) => a - b)
+      )
+    }
+  })
 })

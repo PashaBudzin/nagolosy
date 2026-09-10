@@ -14,6 +14,7 @@ interface TrainingGroup {
   id: number
   name: string
   indices: number[]
+  subgroups?: TrainingGroup[]
 }
 
 interface TrainingPanelProps {
@@ -47,17 +48,35 @@ function TrainingPanel({
 
       <div className="flex flex-col gap-2">
         {groups.map((group) => (
-          <Button
-            key={group.id}
-            variant="outline"
-            className="justify-between"
-            onClick={() => onStart(group.indices)}
-          >
-            <span>{group.name}</span>
-            <span className="text-xs text-muted-foreground">
-              {group.indices.length} {groupNoun}
-            </span>
-          </Button>
+          <div key={group.id} className="flex flex-col gap-1.5">
+            <Button
+              variant="outline"
+              className="justify-between"
+              onClick={() => onStart(group.indices)}
+            >
+              <span>{group.name}</span>
+              <span className="text-xs text-muted-foreground">
+                {group.indices.length} {groupNoun}
+              </span>
+            </Button>
+            {group.subgroups && (
+              <div className="flex flex-col gap-1.5 pl-3">
+                {group.subgroups.map((sub) => (
+                  <Button
+                    key={sub.id}
+                    variant="ghost"
+                    className="justify-between"
+                    onClick={() => onStart(sub.indices)}
+                  >
+                    <span>{sub.name}</span>
+                    <span className="text-xs text-muted-foreground">
+                      {sub.indices.length} {groupNoun}
+                    </span>
+                  </Button>
+                ))}
+              </div>
+            )}
+          </div>
         ))}
       </div>
 
@@ -193,6 +212,11 @@ export function Home() {
             id: g.id,
             name: g.name,
             indices: g.historyIndices,
+            subgroups: g.subgroups.map((s) => ({
+              id: s.id,
+              name: s.name,
+              indices: s.historyIndices,
+            })),
           }))}
           onStart={(indices) =>
             navigate("/history-test", { state: { historyIndices: indices } })

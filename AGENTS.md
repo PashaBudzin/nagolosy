@@ -66,7 +66,7 @@ src/
 - Idioms are grouped in `src/data/idiom-groups.ts` (11 groups of ~22 entries).
 - History facts are structured `{ date, event }` objects in `history.ts` (566 entries, e.g. `{ date: "988", event: "Запровадження..." }`); dates vary widely (single years, ranges `882–912`, months `травень 1648`, full dates `19 лютого 1861`, centuries `IX–VII ст. до н. е.`, millennia).
 - History quiz options are built by `buildHistoryQuizOptions()` in `src/lib/history.ts` — the correct date + 3 chronologically nearest unique dates (plausible distractors). `dateEpoch()` normalizes any date string to a numeric epoch for distance sorting.
-- History facts are grouped by period in `src/data/history-groups.ts` (5 groups named by the source table's periods, e.g. "Найдавніші часи – перша половина XVI ст.").
+- History facts are grouped by period in `src/data/history-groups.ts` (5 parent groups named by the source table's periods, e.g. "Найдавніші часи – перша половина XVI ст."). Each parent group is split into **3 chronologically ordered subgroups** (`subgroups` array), so `HISTORY_GROUPS` covers every fact exactly once at both parent and subgroup level.
 - Duplicate history events (same event text, different dates) are disambiguated by appending `(date)` to the later occurrence (e.g. "Масовий голод в Україні (1946–1947)").
 
 ## Shared infra

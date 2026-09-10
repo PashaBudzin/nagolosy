@@ -78,8 +78,15 @@ export interface IdiomGroup {
   idiomIndices: number[]
 }
 
+export interface HistorySubgroup {
+  id: number
+  name: string
+  historyIndices: number[]
+}
+
 export interface HistoryGroup {
   id: number
   name: string
   historyIndices: number[]
+  subgroups: HistorySubgroup[]
 }
