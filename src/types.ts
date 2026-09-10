@@ -15,6 +15,7 @@ export interface SessionBase<TResult> {
 
 export type SessionData = SessionBase<WordResult>
 export type IdiomSessionData = SessionBase<IdiomResult>
+export type HistorySessionData = SessionBase<HistoryResult>
 
 export interface HistoryEntry {
   correct: boolean
@@ -39,6 +40,24 @@ export interface IdiomStats extends StatsBase {
   definition: string
 }
 
+export interface HistoryFact {
+  date: string
+  event: string
+}
+
+export interface HistoryResult {
+  date: string
+  event: string
+  options: string[]
+  selected: string | null
+  correct: boolean
+}
+
+export interface HistoryStats extends StatsBase {
+  date: string
+  event: string
+}
+
 export interface Group {
   id: number
   name: string
@@ -57,4 +76,10 @@ export interface IdiomGroup {
   id: number
   name: string
   idiomIndices: number[]
+}
+
+export interface HistoryGroup {
+  id: number
+  name: string
+  historyIndices: number[]
 }

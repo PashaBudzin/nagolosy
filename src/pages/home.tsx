@@ -2,11 +2,13 @@ import { useState } from "react"
 import { useNavigate } from "react-router-dom"
 import { GROUPS } from "@/data/groups"
 import { IDIOM_GROUPS } from "@/data/idiom-groups"
+import { HISTORY_GROUPS } from "@/data/history-groups"
 import { Button } from "@/components/ui/button"
 import { useSessions } from "@/hooks/use-sessions"
 import { useIdiomSessions } from "@/hooks/use-idiom-sessions"
+import { useHistorySessions } from "@/hooks/use-history-sessions"
 
-type Mode = "words" | "idioms"
+type Mode = "words" | "idioms" | "history"
 
 interface TrainingGroup {
   id: number
@@ -90,6 +92,7 @@ export function Home() {
   const [mode, setMode] = useState<Mode>("words")
   const { getProblematicWordIndices } = useSessions()
   const { getProblematicIdiomIndices } = useIdiomSessions()
+  const { getProblematicHistoryIndices } = useHistorySessions()
 
   const handleProblematic = (count: number) => {
     const indices = getProblematicWordIndices(count)
@@ -103,10 +106,20 @@ export function Home() {
     navigate("/idiom-test", { state: { idiomIndices: indices } })
   }
 
+  const handleProblematicHistory = (count: number) => {
+    const indices = getProblematicHistoryIndices(count)
+    if (indices.length === 0) return
+    navigate("/history-test", { state: { historyIndices: indices } })
+  }
+
   return (
     <div className="mx-auto flex max-w-lg flex-col gap-4 p-6">
       <h1 className="text-2xl font-bold">
-        {mode === "words" ? "Наголоси НМТ" : "Фразеологізми НМТ"}
+        {mode === "words"
+          ? "Наголоси НМТ"
+          : mode === "idioms"
+            ? "Фразеологізми НМТ"
+            : "Історія України НМТ"}
       </h1>
 
       <div className="flex gap-2">
@@ -124,6 +137,13 @@ export function Home() {
         >
           Фразеологізми
         </Button>
+        <Button
+          variant={mode === "history" ? "default" : "outline"}
+          className="flex-1"
+          onClick={() => setMode("history")}
+        >
+          Історія
+        </Button>
       </div>
 
       {mode === "words" ? (
@@ -138,11 +158,13 @@ export function Home() {
             name: g.name,
             indices: g.wordIndices,
           }))}
-          onStart={(indices) => navigate("/test", { state: { wordIndices: indices } })}
+          onStart={(indices) =>
+            navigate("/test", { state: { wordIndices: indices } })
+          }
           onProblematic={handleProblematic}
           onShowStats={() => navigate("/stats")}
         />
-      ) : (
+      ) : mode === "idioms" ? (
         <TrainingPanel
           groupNoun="фраз"
           pickText="Обери групу фразеологізмів для тренування"
@@ -154,9 +176,29 @@ export function Home() {
             name: g.name,
             indices: g.idiomIndices,
           }))}
-          onStart={(indices) => navigate("/idiom-test", { state: { idiomIndices: indices } })}
+          onStart={(indices) =>
+            navigate("/idiom-test", { state: { idiomIndices: indices } })
+          }
           onProblematic={handleProblematicIdioms}
           onShowStats={() => navigate("/idiom-stats")}
+        />
+      ) : (
+        <TrainingPanel
+          groupNoun="подій"
+          pickText="Обери період для тренування"
+          allLabel={(count) => `Усі події (${count})`}
+          problematicLabel="Проблемні події"
+          problematicButtonLabel={(count) => `${count} подій`}
+          groups={HISTORY_GROUPS.map((g) => ({
+            id: g.id,
+            name: g.name,
+            indices: g.historyIndices,
+          }))}
+          onStart={(indices) =>
+            navigate("/history-test", { state: { historyIndices: indices } })
+          }
+          onProblematic={handleProblematicHistory}
+          onShowStats={() => navigate("/history-stats")}
         />
       )}
     </div>
