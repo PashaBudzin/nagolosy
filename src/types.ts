@@ -90,3 +90,20 @@ export interface HistoryGroup {
   historyIndices: number[]
   subgroups: HistorySubgroup[]
 }
+
+export interface VisualHistoryResult {
+  imageUrl: string
+  name: string
+  category: string
+  options: string[]
+  selected: string | null
+  correct: boolean
+}
+
+export type VisualHistorySessionData = SessionBase<VisualHistoryResult>
+
+export interface VisualHistoryStats extends StatsBase {
+  imageUrl: string
+  name: string
+  category: string
+}

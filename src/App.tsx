@@ -6,6 +6,8 @@ import { IdiomTest } from "@/pages/idiom-test"
 import { IdiomStats } from "@/pages/idiom-stats"
 import { HistoryTest } from "@/pages/history-test"
 import { HistoryStats } from "@/pages/history-stats"
+import { VisualHistoryTest } from "@/pages/visual-history-test"
+import { VisualHistoryStats } from "@/pages/visual-history-stats"
 
 export function App() {
   return (
@@ -18,6 +20,8 @@ export function App() {
         <Route path="/idiom-stats" element={<IdiomStats />} />
         <Route path="/history-test" element={<HistoryTest />} />
         <Route path="/history-stats" element={<HistoryStats />} />
+        <Route path="/visual-history-test" element={<VisualHistoryTest />} />
+        <Route path="/visual-history-stats" element={<VisualHistoryStats />} />
       </Routes>
     </BrowserRouter>
   )

@@ -71,8 +71,8 @@ interface StatsPageProps<TItem extends ItemStatsLike> {
   title: string
   stats: TItem[]
   clearSessions: () => void
-  groups: { id: number; name: string }[]
-  matchesGroup: (item: TItem, groupId: number) => boolean
+  groups: { id: string | number; name: string }[]
+  matchesGroup: (item: TItem, groupId: string | number) => boolean
   alphaKey: (item: TItem) => string
   rowKey: (item: TItem) => string
   explanation?: (item: TItem) => string | undefined
@@ -120,7 +120,7 @@ export function StatsPage<TItem extends ItemStatsLike>({
   const navigate = useNavigate()
 
   const [sortKey, setSortKey] = useState<SortKey>("ratio-asc")
-  const [groupFilter, setGroupFilter] = useState<number | null>(null)
+  const [groupFilter, setGroupFilter] = useState<string | number | null>(null)
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all")
   const [attemptedFilter, setAttemptedFilter] = useState<AttemptedFilter>("all")
   const [explanationFilter, setExplanationFilter] =
@@ -271,7 +271,10 @@ export function StatsPage<TItem extends ItemStatsLike>({
               value={groupFilter ?? ""}
               onChange={(e) =>
                 setGroupFilter(
-                  e.target.value === "" ? null : Number(e.target.value),
+                  e.target.value === ""
+                    ? null
+                    : groups.find((g) => String(g.id) === e.target.value)?.id ??
+                      e.target.value,
                 )
               }
               className="rounded-md border bg-background px-3 py-1.5 text-sm"

@@ -3,15 +3,17 @@ import { useNavigate } from "react-router-dom"
 import { GROUPS } from "@/data/groups"
 import { IDIOM_GROUPS } from "@/data/idiom-groups"
 import { HISTORY_GROUPS } from "@/data/history-groups"
+import { VISUAL_HISTORY_GROUPS } from "@/data/visual-history-groups"
 import { Button } from "@/components/ui/button"
 import { useSessions } from "@/hooks/use-sessions"
 import { useIdiomSessions } from "@/hooks/use-idiom-sessions"
 import { useHistorySessions } from "@/hooks/use-history-sessions"
+import { useVisualHistorySessions } from "@/hooks/use-visual-history-sessions"
 
-type Mode = "words" | "idioms" | "history"
+type Mode = "words" | "idioms" | "history" | "visual-history"
 
 interface TrainingGroup {
-  id: number
+  id: number | string
   name: string
   indices: number[]
   subgroups?: TrainingGroup[]
@@ -112,6 +114,7 @@ export function Home() {
   const { getProblematicWordIndices } = useSessions()
   const { getProblematicIdiomIndices } = useIdiomSessions()
   const { getProblematicHistoryIndices } = useHistorySessions()
+  const { getProblematicVisualHistoryIndices } = useVisualHistorySessions()
 
   const handleProblematic = (count: number) => {
     const indices = getProblematicWordIndices(count)
@@ -131,6 +134,14 @@ export function Home() {
     navigate("/history-test", { state: { historyIndices: indices } })
   }
 
+  const handleProblematicVisualHistory = (count: number) => {
+    const indices = getProblematicVisualHistoryIndices(count)
+    if (indices.length === 0) return
+    navigate("/visual-history-test", {
+      state: { visualHistoryIndices: indices },
+    })
+  }
+
   return (
     <div className="mx-auto flex max-w-lg flex-col gap-4 p-6">
       <h1 className="text-2xl font-bold">
@@ -138,7 +149,9 @@ export function Home() {
           ? "Наголоси НМТ"
           : mode === "idioms"
             ? "Фразеологізми НМТ"
-            : "Історія України НМТ"}
+            : mode === "history"
+              ? "Історія дати"
+              : "Історія візуальні об'єкти"}
       </h1>
 
       <div className="flex gap-2">
@@ -161,7 +174,14 @@ export function Home() {
           className="flex-1"
           onClick={() => setMode("history")}
         >
-          Історія
+          Історія дати
+        </Button>
+        <Button
+          variant={mode === "visual-history" ? "default" : "outline"}
+          className="flex-1"
+          onClick={() => setMode("visual-history")}
+        >
+          Візуальні
         </Button>
       </div>
 
@@ -201,7 +221,7 @@ export function Home() {
           onProblematic={handleProblematicIdioms}
           onShowStats={() => navigate("/idiom-stats")}
         />
-      ) : (
+      ) : mode === "history" ? (
         <TrainingPanel
           groupNoun="подій"
           pickText="Обери період для тренування"
@@ -223,6 +243,26 @@ export function Home() {
           }
           onProblematic={handleProblematicHistory}
           onShowStats={() => navigate("/history-stats")}
+        />
+      ) : (
+        <TrainingPanel
+          groupNoun="об'єктів"
+          pickText="Обери категорію для тренування"
+          allLabel={(count) => `Усі об'єкти (${count})`}
+          problematicLabel="Проблемні об'єкти"
+          problematicButtonLabel={(count) => `${count}`}
+          groups={VISUAL_HISTORY_GROUPS.map((g) => ({
+            id: g.id,
+            name: g.name,
+            indices: g.itemIndices,
+          }))}
+          onStart={(indices) =>
+            navigate("/visual-history-test", {
+              state: { visualHistoryIndices: indices },
+            })
+          }
+          onProblematic={handleProblematicVisualHistory}
+          onShowStats={() => navigate("/visual-history-stats")}
         />
       )}
     </div>
