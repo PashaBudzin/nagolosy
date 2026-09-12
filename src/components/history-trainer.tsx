@@ -9,9 +9,14 @@ import { Kbd } from "@/components/ui/kbd"
 interface HistoryTrainerProps {
   indices: number[]
   onComplete: (results: HistoryResult[], durationMs: number) => void
+  onExit: () => void
 }
 
-export function HistoryTrainer({ indices, onComplete }: HistoryTrainerProps) {
+export function HistoryTrainer({
+  indices,
+  onComplete,
+  onExit,
+}: HistoryTrainerProps) {
   const [currentIndex, setCurrentIndex] = useState(0)
   const [results, setResults] = useState<HistoryResult[]>([])
   const [selected, setSelected] = useState<string | null>(null)
@@ -98,6 +103,7 @@ export function HistoryTrainer({ indices, onComplete }: HistoryTrainerProps) {
       wrongCount={wrongCount}
       feedback={feedback}
       onNext={handleNext}
+      onExit={onExit}
       hints={hints}
     >
       <p className="text-sm text-muted-foreground">Вкажи дату події</p>

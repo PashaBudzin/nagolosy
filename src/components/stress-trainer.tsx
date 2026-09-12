@@ -9,6 +9,7 @@ import { Kbd } from "@/components/ui/kbd"
 interface StressTrainerProps {
   indices: number[]
   onComplete: (results: WordResult[], durationMs: number) => void
+  onExit: () => void
 }
 
 type LetterState = "idle" | "correct" | "wrong" | "revealed"
@@ -40,7 +41,11 @@ function isVowel(ch: string) {
   return VOWELS.has(ch)
 }
 
-export function StressTrainer({ indices, onComplete }: StressTrainerProps) {
+export function StressTrainer({
+  indices,
+  onComplete,
+  onExit,
+}: StressTrainerProps) {
   const [currentIndex, setCurrentIndex] = useState(0)
   const [results, setResults] = useState<WordResult[]>([])
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null)
@@ -149,6 +154,7 @@ export function StressTrainer({ indices, onComplete }: StressTrainerProps) {
       wrongCount={wrongCount}
       feedback={feedback}
       onNext={handleNext}
+      onExit={onExit}
       hints={hints}
     >
       {explanation && (

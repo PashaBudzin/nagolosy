@@ -1,4 +1,5 @@
 import type { ReactNode } from "react"
+import { RiCloseLine } from "@remixicon/react"
 import { Button } from "@/components/ui/button"
 import { formatTime } from "@/lib/format"
 import { cn } from "@/lib/utils"
@@ -13,6 +14,7 @@ interface TrainerShellProps {
   wrongCount: number
   feedback: Feedback
   onNext: () => void
+  onExit: () => void
   hints?: ReactNode
   children: ReactNode
 }
@@ -25,6 +27,7 @@ export function TrainerShell({
   wrongCount,
   feedback,
   onNext,
+  onExit,
   hints,
   children,
 }: TrainerShellProps) {
@@ -34,6 +37,15 @@ export function TrainerShell({
         <span>
           {currentIndex + 1} / {total}
         </span>
+        <Button
+          variant="ghost"
+          size="xs"
+          className="text-muted-foreground"
+          onClick={onExit}
+        >
+          <RiCloseLine />
+          Вийти
+        </Button>
         <span className="tabular-nums">{formatTime(elapsedMs)}</span>
       </div>
 

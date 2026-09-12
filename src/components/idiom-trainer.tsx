@@ -9,9 +9,14 @@ import { Kbd } from "@/components/ui/kbd"
 interface IdiomTrainerProps {
   indices: number[]
   onComplete: (results: IdiomResult[], durationMs: number) => void
+  onExit: () => void
 }
 
-export function IdiomTrainer({ indices, onComplete }: IdiomTrainerProps) {
+export function IdiomTrainer({
+  indices,
+  onComplete,
+  onExit,
+}: IdiomTrainerProps) {
   const [currentIndex, setCurrentIndex] = useState(0)
   const [results, setResults] = useState<IdiomResult[]>([])
   const [selected, setSelected] = useState<string | null>(null)
@@ -98,6 +103,7 @@ export function IdiomTrainer({ indices, onComplete }: IdiomTrainerProps) {
       wrongCount={wrongCount}
       feedback={feedback}
       onNext={handleNext}
+      onExit={onExit}
       hints={hints}
     >
       <p className="text-sm text-muted-foreground">Що означає фразеологізм?</p>

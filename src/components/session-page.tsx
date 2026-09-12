@@ -7,6 +7,7 @@ interface SessionPageProps<TResult> {
   Trainer: ComponentType<{
     indices: number[]
     onComplete: (results: TResult[], durationMs: number) => void
+    onExit: () => void
   }>
   Results: ComponentType<{
     results: TResult[]
@@ -38,7 +39,7 @@ export function SessionPage<TResult>({
       setDurationMs(d)
       addSession(buildSession(r, d))
     },
-    [addSession, buildSession],
+    [addSession, buildSession]
   )
 
   if (indices.length === 0) {
@@ -62,5 +63,11 @@ export function SessionPage<TResult>({
     )
   }
 
-  return <Trainer indices={indices} onComplete={handleComplete} />
+  return (
+    <Trainer
+      indices={indices}
+      onComplete={handleComplete}
+      onExit={() => navigate("/")}
+    />
+  )
 }

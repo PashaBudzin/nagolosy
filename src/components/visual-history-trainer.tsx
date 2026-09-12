@@ -12,11 +12,13 @@ import { cn } from "@/lib/utils"
 interface VisualHistoryTrainerProps {
   indices: number[]
   onComplete: (results: VisualHistoryResult[], durationMs: number) => void
+  onExit: () => void
 }
 
 export function VisualHistoryTrainer({
   indices,
   onComplete,
+  onExit,
 }: VisualHistoryTrainerProps) {
   const [currentIndex, setCurrentIndex] = useState(0)
   const [results, setResults] = useState<VisualHistoryResult[]>([])
@@ -33,10 +35,7 @@ export function VisualHistoryTrainer({
 
   const options = useMemo(() => {
     if (!currentItem) return []
-    return buildVisualHistoryQuizOptions(
-      currentItem.name,
-      currentItem.category
-    )
+    return buildVisualHistoryQuizOptions(currentItem.name, currentItem.category)
   }, [currentItem])
 
   const handleOptionClick = useCallback(
@@ -97,6 +96,7 @@ export function VisualHistoryTrainer({
       wrongCount={wrongCount}
       feedback={feedback}
       onNext={handleNext}
+      onExit={onExit}
       hints={
         <>
           <span className="flex items-center gap-1">
@@ -140,7 +140,10 @@ export function VisualHistoryTrainer({
               <Button
                 key={option}
                 variant="outline"
-                className={cn(className, "h-auto py-3 whitespace-normal break-words")}
+                className={cn(
+                  className,
+                  "h-auto py-3 break-words whitespace-normal"
+                )}
                 onClick={() => handleOptionClick(option)}
                 disabled={feedback !== "idle"}
               >
