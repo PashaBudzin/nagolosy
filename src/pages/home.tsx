@@ -154,7 +154,7 @@ export function Home() {
               : "Історія візуальні об'єкти"}
       </h1>
 
-      <div className="flex gap-2">
+      <div className="flex flex-wrap gap-2">
         <Button
           variant={mode === "words" ? "default" : "outline"}
           className="flex-1"
