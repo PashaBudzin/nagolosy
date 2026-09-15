@@ -34,13 +34,13 @@ Recommended verification order for changes: `bun lint && bun typecheck && bun te
 ```
 src/
   main.tsx            # entry: renders <App> inside <ThemeProvider>
-  App.tsx             # BrowserRouter with 7 routes: /, /test, /stats, /idiom-test, /idiom-stats, /history-test, /history-stats
-  pages/              # home.tsx, test.tsx, stats.tsx, idiom-test.tsx, idiom-stats.tsx, history-test.tsx, history-stats.tsx
-  components/         # stress-trainer.tsx, session-results.tsx, idiom-trainer.tsx, idiom-session-results.tsx, history-trainer.tsx, history-session-results.tsx, trainer-shell.tsx, session-results-shell.tsx, session-page.tsx, stats-page.tsx, theme-provider.tsx
-  components/ui/      # shadcn primitives (currently only button.tsx)
-  hooks/              # use-sessions.ts, use-idiom-sessions.ts, use-history-sessions.ts (localStorage persistence), use-timer.ts
-  lib/                # stress.ts (word parsing), idioms.ts (idiom parsing + quiz options), history.ts (date parsing + quiz options), session-store.ts, session-stats.ts, format.ts, utils.ts (cn)
-  data/               # words.ts (word list), groups.ts (group definitions), idioms.ts (idiom list), idiom-groups.ts (idiom group definitions), history.ts (date/event list), history-groups.ts (historical periods)
+  App.tsx             # BrowserRouter with routes: /, /test, /stats, /idiom-test, /idiom-stats, /history-test, /history-stats, /term-test, /term-stats, /visual-history-test, /visual-history-stats
+  pages/              # home.tsx, test.tsx, stats.tsx, idiom-test.tsx, idiom-stats.tsx, history-test.tsx, history-stats.tsx, term-test.tsx, term-stats.tsx, visual-history-test.tsx, visual-history-stats.tsx
+  components/         # stress-trainer.tsx, session-results.tsx, idiom-trainer.tsx, idiom-session-results.tsx, history-trainer.tsx, history-session-results.tsx, term-trainer.tsx, term-session-results.tsx, trainer-shell.tsx, session-results-shell.tsx, session-page.tsx, stats-page.tsx, theme-provider.tsx
+  components/ui/      # shadcn primitives (button.tsx) + shared widgets (kbd.tsx, quiz-mode-switch.tsx)
+  hooks/              # use-sessions.ts, use-idiom-sessions.ts, use-history-sessions.ts, use-term-sessions.ts (localStorage persistence), use-timer.ts
+  lib/                # stress.ts (word parsing), idioms.ts (idiom parsing + quiz options), history.ts (date parsing + quiz options), match.ts (shared match-quiz mode logic), terms.ts (term parsing), session-store.ts, session-stats.ts, format.ts, utils.ts (cn)
+  data/               # words.ts (word list), groups.ts (group definitions), idioms.ts (idiom list), idiom-groups.ts (idiom group definitions), history.ts (date/event list), history-groups.ts (historical periods), terms.ts (term list), term-groups.ts (term group definitions)
   types.ts            # shared types
   index.css           # Tailwind entry + CSS variables + dark mode
 ```
@@ -68,15 +68,18 @@ src/
 - History quiz options are built by `buildHistoryQuizOptions()` in `src/lib/history.ts` — the correct date + 3 chronologically nearest unique dates (plausible distractors). `dateEpoch()` normalizes any date string to a numeric epoch for distance sorting.
 - History facts are grouped by period in `src/data/history-groups.ts` (5 parent groups named by the source table's periods, e.g. "Найдавніші часи – перша половина XVI ст."). Each parent group is split into **3 chronologically ordered subgroups** (`subgroups` array), so `HISTORY_GROUPS` covers every fact exactly once at both parent and subgroup level.
 - Duplicate history events (same event text, different dates) are disambiguated by appending `(date)` to the later occurrence (e.g. "Масовий голод в Україні (1946–1947)").
+- Terms are raw strings `"Term – definition"` (en-dash separator) in `terms.ts` (222 entries); `parseTerm()` in `src/lib/terms.ts` splits them. Definitions follow the НМТ history program.
+- Terms quiz options are built by `buildMatchOptions()` in `src/lib/match.ts`; terms are grouped in `src/data/term-groups.ts` (22 groups, 19th-century sections combined, revolution sections 21/22 kept separate).
 
 ## Shared infra
 
-All trainers (words + idioms + history) are thin wrappers around shared shells that own the common session UX:
+All trainers (words + idioms + history + terms) are thin wrappers around shared shells that own the common session UX:
 
 - `src/components/trainer-shell.tsx` — progress header, timer, ✓/✗ counts, feedback + next button. Trainers inject their question UI as `children`.
 - `src/components/session-results-shell.tsx` — results header (%, ✓/✗, time) + restart/home buttons + scrollable list; rows injected via `renderRow`.
-- `src/components/session-page.tsx` — generic trainer→results page flow: reads indices from router state, redirects to `/` when empty, saves the session on completion. `test.tsx` / `idiom-test.tsx` / `history-test.tsx` are thin config wrappers.
-- `src/components/stats-page.tsx` — generic stats page (sort, group/status/attempted/explanation/date filters, totals, clear). `stats.tsx` / `idiom-stats.tsx` / `history-stats.tsx` are thin config wrappers; the words page alone passes an `explanation` getter to enable that filter.
+- `src/components/session-page.tsx` — generic trainer→results page flow: reads indices from router state, redirects to `/` when empty, saves the session on completion. `test.tsx` / `idiom-test.tsx` / `history-test.tsx` / `term-test.tsx` are thin config wrappers.
+- `src/components/stats-page.tsx` — generic stats page (sort, group/status/attempted/explanation/date filters, totals, clear). `stats.tsx` / `idiom-stats.tsx` / `history-stats.tsx` / `term-stats.tsx` are thin config wrappers; the words page alone passes an `explanation` getter to enable that filter.
+- `src/lib/match.ts` — shared two-direction match-quiz pattern (`MatchMode`, `matchPrompt`/`matchAnswer`, `buildMatchOptions(entries, correct, mode, count, distractorPool?)`). `term-trainer.tsx` restricts distractors to the **same historical group** as the correct term (so options are plausible, not obviously wrong era); the quiz direction is chosen **before** the session starts — `QuizModeSwitch` in `src/components/ui/quiz-mode-switch.tsx` lives on the home page's terms panel and is passed to `/term-test` via router state (`termMode`). Pattern intended to be reused when idioms gain the same feature.
 - `src/lib/session-store.ts` — `createSessionStore<T>()` factory: localStorage key + max-sessions cap live here; `useSessionStore()` wraps it with `useSyncExternalStore`.
 - `src/lib/session-stats.ts` — `aggregateStats()` (seeds + sessions → per-item stats) and `pickProblematic()` (worst-ratio items, capped).
 - `src/hooks/use-timer.ts` — elapsed-milliseconds timer + `now()` callback.
@@ -84,11 +87,12 @@ All trainers (words + idioms + history) are thin wrappers around shared shells t
 
 ## Testing
 
-- Vitest, tests colocated as `*.test.ts` (`src/lib/stress.test.ts`, `src/data/words.test.ts`, `src/lib/idioms.test.ts`, `src/data/idioms.test.ts`, `src/lib/history.test.ts`, `src/data/history.test.ts`).
+- Vitest, tests colocated as `*.test.ts` (`src/lib/stress.test.ts`, `src/data/words.test.ts`, `src/lib/idioms.test.ts`, `src/data/idioms.test.ts`, `src/lib/history.test.ts`, `src/data/history.test.ts`, `src/lib/terms.test.ts`, `src/data/terms.test.ts`).
 - No separate `__tests__/` dir, no coverage config.
 - `words.test.ts` validates dataset integrity (every entry has stress marker, stress indices in bounds, homonyms have explanations, valid characters).
 - `idioms.test.ts` validates dataset integrity (every entry splits into idiom + definition, no duplicate idioms, no stray whitespace).
 - `history.test.ts` validates dataset integrity (566 entries, unique events, every date parseable to an epoch, groups cover all facts once); `lib/history.test.ts` checks epoch mapping and that quiz options are 4 unique dates with plausible (chronologically near) distractors.
+- `terms.test.ts` validates dataset integrity (every entry splits into term + definition, no duplicate terms or definitions, groups cover all 222 entries once); `lib/terms.test.ts` checks that `buildMatchOptions()` returns 4 unique options with the correct answer in both modes.
 
 ## State persistence
 
@@ -96,7 +100,8 @@ All trainers (words + idioms + history) are thin wrappers around shared shells t
 - Word sessions stored in `localStorage` under key `nagolosy-sessions`, max 5 sessions.
 - Idiom sessions stored under key `nagolosy-idiom-sessions`, max 5 sessions (separate from word sessions).
 - History sessions stored under key `nagolosy-history-sessions`, max 5 sessions (separate from word/idiom sessions).
-- `useSessions()` / `useIdiomSessions()` / `useHistorySessions()` hooks use `useSyncExternalStore` for reactivity.
+- Term sessions stored under key `nagolosy-term-sessions`, max 5 sessions (separate from word/idiom/history sessions).
+- `useSessions()` / `useIdiomSessions()` / `useHistorySessions()` / `useTermSessions()` hooks use `useSyncExternalStore` for reactivity.
 
 ## Deployment
 

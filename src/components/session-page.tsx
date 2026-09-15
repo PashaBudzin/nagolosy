@@ -2,13 +2,16 @@ import { useState, useCallback, type ComponentType } from "react"
 import { useLocation, useNavigate } from "react-router-dom"
 import type { SessionBase } from "@/types"
 
-interface SessionPageProps<TResult> {
+interface SessionPageProps<TResult, TExtra extends object> {
   getIndices: (state: unknown) => number[]
-  Trainer: ComponentType<{
-    indices: number[]
-    onComplete: (results: TResult[], durationMs: number) => void
-    onExit: () => void
-  }>
+  Trainer: ComponentType<
+    {
+      indices: number[]
+      onComplete: (results: TResult[], durationMs: number) => void
+      onExit: () => void
+    } & TExtra
+  >
+  trainerProps?: TExtra
   Results: ComponentType<{
     results: TResult[]
     durationMs: number
@@ -19,13 +22,14 @@ interface SessionPageProps<TResult> {
   addSession: (session: SessionBase<TResult>) => void
 }
 
-export function SessionPage<TResult>({
+export function SessionPage<TResult, TExtra extends object = object>({
   getIndices,
   Trainer,
+  trainerProps,
   Results,
   buildSession,
   addSession,
-}: SessionPageProps<TResult>) {
+}: SessionPageProps<TResult, TExtra>) {
   const location = useLocation()
   const navigate = useNavigate()
   const [results, setResults] = useState<TResult[] | null>(null)
@@ -68,6 +72,7 @@ export function SessionPage<TResult>({
       indices={indices}
       onComplete={handleComplete}
       onExit={() => navigate("/")}
+      {...trainerProps}
     />
   )
 }

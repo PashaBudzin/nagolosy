@@ -16,6 +16,7 @@ export interface SessionBase<TResult> {
 export type SessionData = SessionBase<WordResult>
 export type IdiomSessionData = SessionBase<IdiomResult>
 export type HistorySessionData = SessionBase<HistoryResult>
+export type TermSessionData = SessionBase<TermResult>
 
 export interface HistoryEntry {
   correct: boolean
@@ -76,6 +77,25 @@ export interface IdiomGroup {
   id: number
   name: string
   idiomIndices: number[]
+}
+
+export interface TermResult {
+  term: string
+  definition: string
+  options: string[]
+  selected: string | null
+  correct: boolean
+}
+
+export interface TermGroup {
+  id: number
+  name: string
+  termIndices: number[]
+}
+
+export interface TermStats extends StatsBase {
+  term: string
+  definition: string
 }
 
 export interface HistorySubgroup {

@@ -3,14 +3,23 @@ import { useNavigate } from "react-router-dom"
 import { GROUPS } from "@/data/groups"
 import { IDIOM_GROUPS } from "@/data/idiom-groups"
 import { HISTORY_GROUPS } from "@/data/history-groups"
+import { TERM_GROUPS } from "@/data/term-groups"
 import { VISUAL_HISTORY_GROUPS } from "@/data/visual-history-groups"
 import { Button } from "@/components/ui/button"
+import { QuizModeSwitch } from "@/components/ui/quiz-mode-switch"
+import type { MatchMode } from "@/lib/match"
 import { useSessions } from "@/hooks/use-sessions"
 import { useIdiomSessions } from "@/hooks/use-idiom-sessions"
 import { useHistorySessions } from "@/hooks/use-history-sessions"
+import { useTermSessions } from "@/hooks/use-term-sessions"
 import { useVisualHistorySessions } from "@/hooks/use-visual-history-sessions"
 
-type Mode = "words" | "idioms" | "history" | "visual-history"
+type Mode = "words" | "idioms" | "history" | "terms" | "visual-history"
+
+const TERM_MODE_LABELS: Record<MatchMode, string> = {
+  "item-to-definition": "Термін → визначення",
+  "definition-to-item": "Визначення → термін",
+}
 
 interface TrainingGroup {
   id: number | string
@@ -53,11 +62,11 @@ function TrainingPanel({
           <div key={group.id} className="flex flex-col gap-1.5">
             <Button
               variant="outline"
-              className="justify-between"
+              className="h-auto min-h-9 py-2 whitespace-normal"
               onClick={() => onStart(group.indices)}
             >
-              <span>{group.name}</span>
-              <span className="text-xs text-muted-foreground">
+              <span className="whitespace-normal">{group.name}</span>
+              <span className="shrink-0 text-xs whitespace-nowrap text-muted-foreground">
                 {group.indices.length} {groupNoun}
               </span>
             </Button>
@@ -67,11 +76,11 @@ function TrainingPanel({
                   <Button
                     key={sub.id}
                     variant="ghost"
-                    className="justify-between"
+                    className="h-auto min-h-9 py-2 whitespace-normal"
                     onClick={() => onStart(sub.indices)}
                   >
-                    <span>{sub.name}</span>
-                    <span className="text-xs text-muted-foreground">
+                    <span className="whitespace-normal">{sub.name}</span>
+                    <span className="shrink-0 text-xs whitespace-nowrap text-muted-foreground">
                       {sub.indices.length} {groupNoun}
                     </span>
                   </Button>
@@ -111,9 +120,11 @@ function TrainingPanel({
 export function Home() {
   const navigate = useNavigate()
   const [mode, setMode] = useState<Mode>("words")
+  const [termMode, setTermMode] = useState<MatchMode>("item-to-definition")
   const { getProblematicWordIndices } = useSessions()
   const { getProblematicIdiomIndices } = useIdiomSessions()
   const { getProblematicHistoryIndices } = useHistorySessions()
+  const { getProblematicTermIndices } = useTermSessions()
   const { getProblematicVisualHistoryIndices } = useVisualHistorySessions()
 
   const handleProblematic = (count: number) => {
@@ -142,6 +153,12 @@ export function Home() {
     })
   }
 
+  const handleProblematicTerms = (count: number) => {
+    const indices = getProblematicTermIndices(count)
+    if (indices.length === 0) return
+    navigate("/term-test", { state: { termIndices: indices, termMode } })
+  }
+
   return (
     <div className="mx-auto flex max-w-lg flex-col gap-4 p-6">
       <h1 className="text-2xl font-bold">
@@ -151,7 +168,9 @@ export function Home() {
             ? "Фразеологізми НМТ"
             : mode === "history"
               ? "Історія дати"
-              : "Історія візуальні об'єкти"}
+              : mode === "terms"
+                ? "Історичні терміни НМТ"
+                : "Історія візуальні об'єкти"}
       </h1>
 
       <div className="flex flex-wrap gap-2">
@@ -175,6 +194,13 @@ export function Home() {
           onClick={() => setMode("history")}
         >
           Історія дати
+        </Button>
+        <Button
+          variant={mode === "terms" ? "default" : "outline"}
+          className="flex-1"
+          onClick={() => setMode("terms")}
+        >
+          Терміни
         </Button>
         <Button
           variant={mode === "visual-history" ? "default" : "outline"}
@@ -244,6 +270,34 @@ export function Home() {
           onProblematic={handleProblematicHistory}
           onShowStats={() => navigate("/history-stats")}
         />
+      ) : mode === "terms" ? (
+        <>
+          <QuizModeSwitch
+            value={termMode}
+            onValueChange={setTermMode}
+            labels={TERM_MODE_LABELS}
+            className="self-center"
+          />
+          <TrainingPanel
+            groupNoun="термінів"
+            pickText="Обери групу термінів для тренування"
+            allLabel={(count) => `Усі терміни (${count})`}
+            problematicLabel="Проблемні терміни"
+            problematicButtonLabel={(count) => `${count} термінів`}
+            groups={TERM_GROUPS.map((g) => ({
+              id: g.id,
+              name: g.name,
+              indices: g.termIndices,
+            }))}
+            onStart={(indices) =>
+              navigate("/term-test", {
+                state: { termIndices: indices, termMode },
+              })
+            }
+            onProblematic={handleProblematicTerms}
+            onShowStats={() => navigate("/term-stats")}
+          />
+        </>
       ) : (
         <TrainingPanel
           groupNoun="об'єктів"
