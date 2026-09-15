@@ -29,6 +29,13 @@ Pre-commit hook (`.husky/pre-commit`): runs only `bun test`.
 
 Recommended verification order for changes: `bun lint && bun typecheck && bun test`.
 
+⚠️ **Before every push** run `bun run dev` (smoke-check that the app boots) and `bun run build`
+(what the CD pipeline runs — `tsc -b && vite build`). A commit that fails `bun run build`
+passes the pre-commit hook but breaks deployment. Note: `bun typecheck` (`tsc --noEmit`) is
+a no-op with this project-references layout (`tsconfig.json` has `files: []`); `bun run build`
+is the authoritative TypeScript gate — always run it.
+`bun build` (no `run`) invokes Bun's native bundler, NOT the npm script.
+
 ## Project structure
 
 ```

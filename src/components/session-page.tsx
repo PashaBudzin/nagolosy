@@ -1,4 +1,9 @@
-import { useState, useCallback, type ComponentType } from "react"
+import {
+  useState,
+  useCallback,
+  type ComponentProps,
+  type ComponentType,
+} from "react"
 import { useLocation, useNavigate } from "react-router-dom"
 import type { SessionBase } from "@/types"
 
@@ -69,10 +74,14 @@ export function SessionPage<TResult, TExtra extends object = object>({
 
   return (
     <Trainer
-      indices={indices}
-      onComplete={handleComplete}
-      onExit={() => navigate("/")}
-      {...trainerProps}
+      {...({
+        indices,
+        onComplete: handleComplete,
+        onExit: () => {
+          navigate("/")
+        },
+        ...trainerProps,
+      } as ComponentProps<typeof Trainer>)}
     />
   )
 }
