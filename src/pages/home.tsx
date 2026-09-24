@@ -38,6 +38,7 @@ interface TrainingPanelProps {
   onStart: (indices: number[]) => void
   onProblematic: (count: number) => void
   onShowStats: () => void
+  onShowAnswers: () => void
 }
 
 function TrainingPanel({
@@ -50,6 +51,7 @@ function TrainingPanel({
   onStart,
   onProblematic,
   onShowStats,
+  onShowAnswers,
 }: TrainingPanelProps) {
   const allIndices = groups.flatMap((g) => g.indices)
 
@@ -110,9 +112,14 @@ function TrainingPanel({
         </div>
       </div>
 
-      <Button variant="ghost" className="mt-4" onClick={onShowStats}>
-        Статистика
-      </Button>
+      <div className="mt-4 flex gap-2">
+        <Button variant="ghost" onClick={onShowAnswers}>
+          Відповіді
+        </Button>
+        <Button variant="ghost" onClick={onShowStats}>
+          Статистика
+        </Button>
+      </div>
     </>
   )
 }
@@ -228,6 +235,7 @@ export function Home() {
           }
           onProblematic={handleProblematic}
           onShowStats={() => navigate("/stats")}
+          onShowAnswers={() => navigate("/answers/words")}
         />
       ) : mode === "idioms" ? (
         <TrainingPanel
@@ -246,6 +254,7 @@ export function Home() {
           }
           onProblematic={handleProblematicIdioms}
           onShowStats={() => navigate("/idiom-stats")}
+          onShowAnswers={() => navigate("/answers/idioms")}
         />
       ) : mode === "history" ? (
         <TrainingPanel
@@ -269,6 +278,7 @@ export function Home() {
           }
           onProblematic={handleProblematicHistory}
           onShowStats={() => navigate("/history-stats")}
+          onShowAnswers={() => navigate("/answers/history")}
         />
       ) : mode === "terms" ? (
         <>
@@ -296,6 +306,7 @@ export function Home() {
             }
             onProblematic={handleProblematicTerms}
             onShowStats={() => navigate("/term-stats")}
+            onShowAnswers={() => navigate("/answers/terms")}
           />
         </>
       ) : (
@@ -317,6 +328,7 @@ export function Home() {
           }
           onProblematic={handleProblematicVisualHistory}
           onShowStats={() => navigate("/visual-history-stats")}
+          onShowAnswers={() => navigate("/answers/visual-history")}
         />
       )}
     </div>

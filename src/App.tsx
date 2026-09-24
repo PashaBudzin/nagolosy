@@ -10,6 +10,11 @@ import { TermTest } from "@/pages/term-test"
 import { TermStats } from "@/pages/term-stats"
 import { VisualHistoryTest } from "@/pages/visual-history-test"
 import { VisualHistoryStats } from "@/pages/visual-history-stats"
+import { AnswersWords } from "@/pages/answers-words"
+import { AnswersIdioms } from "@/pages/answers-idioms"
+import { AnswersHistory } from "@/pages/answers-history"
+import { AnswersTerms } from "@/pages/answers-terms"
+import { AnswersVisualHistory } from "@/pages/answers-visual-history"
 
 export function App() {
   return (
@@ -26,6 +31,14 @@ export function App() {
         <Route path="/term-stats" element={<TermStats />} />
         <Route path="/visual-history-test" element={<VisualHistoryTest />} />
         <Route path="/visual-history-stats" element={<VisualHistoryStats />} />
+        <Route path="/answers/words" element={<AnswersWords />} />
+        <Route path="/answers/idioms" element={<AnswersIdioms />} />
+        <Route path="/answers/history" element={<AnswersHistory />} />
+        <Route path="/answers/terms" element={<AnswersTerms />} />
+        <Route
+          path="/answers/visual-history"
+          element={<AnswersVisualHistory />}
+        />
       </Routes>
     </BrowserRouter>
   )
