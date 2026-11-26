@@ -592,8 +592,11 @@ function resetToLobby(room: Room) {
   })
 }
 
-export function attachRealtime(server: Server): WebSocketServer {
-  const wss = new WebSocketServer({ server, path: "/ws" })
+export function attachRealtime(
+  server: Server,
+  path = "/api/ws"
+): WebSocketServer {
+  const wss = new WebSocketServer({ server, path })
 
   wss.on("connection", (socket) => {
     getMeta(socket)

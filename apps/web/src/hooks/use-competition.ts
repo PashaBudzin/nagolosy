@@ -104,7 +104,7 @@ function socketUrl(): string {
   if (configured) return configured
 
   const protocol = window.location.protocol === "https:" ? "wss:" : "ws:"
-  return `${protocol}//${window.location.host}/ws`
+  return `${protocol}//${window.location.host}/api/ws`
 }
 
 export function useCompetition(roomCode = "") {

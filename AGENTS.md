@@ -33,7 +33,7 @@ Running a workspace task directly (Bun `--cwd`):
 ```sh
 bun run --cwd apps/web dev
 bun run --cwd apps/server dev
-bun run --cwd apps/server start # runs the built server (serves apps/web/dist + /api + /ws)
+bun run --cwd apps/server start # runs the built server (serves apps/web/dist, /api and /api/ws)
 ```
 
 Pre-commit hook (`.husky/pre-commit`): runs only `bun test`.
@@ -52,7 +52,7 @@ server), but `bun run build` remains the authoritative gate.
 apps/
   web/                  # Vite SPA (@nagolosy/web)
     index.html
-    vite.config.ts      # dev/preview proxy: /api and /ws -> http://localhost:3001
+    vite.config.ts      # dev/preview proxy: /api -> http://localhost:3001 (ws: true)
     tsconfig.json       # project references (app + node configs)
     src/
       main.tsx          # entry: renders <App> inside <ThemeProvider>
@@ -67,12 +67,13 @@ apps/
       index.css         # Tailwind entry + CSS variables + dark mode
   server/               # Express 5 app (@nagolosy/server)
     src/app.ts          # createApp({ staticDir? }): /api/health, API 404, optional SPA serving
-    src/index.ts        # Node entry: listens on PORT (default 3001), serves apps/web/dist, attaches /ws
+    src/index.ts        # Node entry: listens on PORT (default 3001), serves apps/web/dist, attaches /api/ws
     src/realtime.ts     # WebSocket room state machine: create/join/rejoin, questions, answers, scoring, leaderboard
     src/protocol.ts     # server copy of the competition wire protocol
     tsconfig.json       # typecheck (src + root api)
     tsconfig.build.json # emit to dist (for `bun run --cwd apps/server start`)
 api/[...all].ts         # Vercel serverless entry: exports the Express app
+api/ws.ts               # Vercel WebSocket function: exported node:http.Server + attachRealtime()
 turbo.json              # task graph
 vercel.json             # Vercel build/output/functions config
 ```
@@ -87,7 +88,7 @@ vercel.json             # Vercel build/output/functions config
 - Dark mode: `.dark` class on `<html>`. Pressing `d` key toggles (handled in `ThemeProvider`).
 - Express app is built by `createApp()` in `apps/server/src/app.ts`, so the same code powers the
   local/Node server (`apps/server/src/index.ts`) and the Vercel function (`api/[...all].ts`).
-- In dev, Vite proxies `/api` and `/ws` to Express on port `3001`; templates should call same-origin `/api/...`.
+- In dev, Vite proxies `/api` (HTTP and WebSocket upgrades) to Express on port `3001`; templates should call same-origin `/api/...`.
 - Group competition protocol is duplicated: `apps/server/src/protocol.ts` and
   `apps/web/src/lib/competition-types.ts`. Update both together.
 - The host browser generates questions (`apps/web/src/lib/competition-questions.ts`) from
@@ -149,10 +150,14 @@ All trainers (words + idioms + history + terms) are thin wrappers around shared 
 - Vercel project root is the repo root. `vercel.json` sets:
   - `buildCommand: bun run build` (Turborepo builds both workspaces), `outputDirectory: apps/web/dist`
   - `api/[...all].ts` as a Node serverless function behind `/api/*` (runtime auto-detected; do not set `runtime` without a version)
+  - `api/ws.ts` exports a `node:http.Server` for `/api/ws` WebSockets (Vercel Fluid compute)
   - SPA fallback rewrite to `/index.html` (filesystem + function routes take precedence)
 - On Vercel the SPA is served from the CDN; the Express app runs only as the `/api` function.
 - Self-hosting the Node server: `bun run build` then `bun run --cwd apps/server start` —
-  Express serves `apps/web/dist` plus `/api` and hosts the `/ws` competition rooms.
-- Vercel Functions are HTTP-only; group competitions require the Node server (or a
-  separate WebSocket host). Set `VITE_WS_URL` to point the SPA at a remote WS host.
+  Express serves `apps/web/dist` plus `/api` and hosts the `/api/ws` competition rooms.
+- Vercel Functions serve WebSockets on Fluid compute (default for projects created
+  after 2025-04-23) through `api/ws.ts`. A reconnect may land on a different
+  instance, so in-memory rooms are only shared within one instance; use an
+  external store (e.g. Redis) for cross-instance rooms. `VITE_WS_URL` can point the
+  SPA at a remote WS host.
 - `.env*` files are gitignored (Vercel OIDC token present in local `.env.local`).
