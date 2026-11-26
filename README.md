@@ -40,11 +40,12 @@ when empty.
 ## НМТ пробні тести
 
 Open `/nmt-tests` (or the **НМТ пробні тести** button on the home page) to browse
-shortened practice sets built from past ЗНО/НМТ exams (184 sets across five
-subjects, including English). Pick a subject from the dropdown, choose a year
-and variant, then work
-through every question with question navigation, flags and a timer. Results
-include a per-question review. Data lives in `apps/web/src/data/nmt-*.ts`
+shortened practice sets built from past ЗНО/НМТ exams (226 sets across six
+subjects: Ukrainian language, Ukrainian literature, history, geography, math and
+English). Ukrainian language and literature are separate subjects. Pick a
+subject from the dropdown, choose a year and variant, then work through every
+question with question navigation, flags and a timer. Results include a
+per-question review. Data lives in `apps/web/src/data/nmt-*.ts`
 (lazy-loaded per subject) and is regenerated with:
 
 ```bash

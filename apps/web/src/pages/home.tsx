@@ -201,7 +201,7 @@ export function Home() {
           <RiFileList3Line />
           НМТ пробні тести
           <span className="ml-1 text-xs text-muted-foreground">
-            184 варіанти
+            226 варіантів
           </span>
         </Button>
       </div>

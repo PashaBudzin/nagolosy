@@ -10,6 +10,7 @@ type ExamModule = { NMT_EXAMS: NmtExam[] }
 
 const loaders: Record<NmtSubjectId, () => Promise<ExamModule>> = {
   ukrainian: () => import("@/data/nmt-ukrainian"),
+  literature: () => import("@/data/nmt-literature"),
   history: () => import("@/data/nmt-history"),
   geography: () => import("@/data/nmt-geography"),
   math: () => import("@/data/nmt-math"),

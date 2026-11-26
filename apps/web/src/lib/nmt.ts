@@ -1,5 +1,5 @@
 export type NmtSubjectId =
-  "ukrainian" | "history" | "geography" | "math" | "english"
+  "ukrainian" | "literature" | "history" | "geography" | "math" | "english"
 
 export type NmtQuestionType = "single" | "multi"
 
@@ -39,6 +39,11 @@ export const NMT_SUBJECTS: {
     id: "ukrainian",
     label: "Українська мова",
     description: "ЗНО та НМТ з української мови й літератури",
+  },
+  {
+    id: "literature",
+    label: "Українська література",
+    description: "ЗНО та НМТ з української літератури",
   },
   {
     id: "history",

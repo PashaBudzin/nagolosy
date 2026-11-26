@@ -29,6 +29,20 @@ const SUBJECTS = {
 } as const
 
 type SubjectId = keyof typeof SUBJECTS
+type OutputSubjectId = SubjectId | "literature"
+
+/** Ukrainian exams are split by their source assessment section. */
+const OUTPUT_SUBJECTS: {
+  id: OutputSubjectId
+  source: string
+  section?: string
+}[] = [
+  { id: "ukrainian", source: "ukrainian", section: "language" },
+  { id: "literature", source: "ukrainian", section: "literature" },
+  { id: "history", source: "history" },
+  { id: "geography", source: "geography" },
+  { id: "math", source: "math" },
+]
 
 const VARIANTS: Record<string, string> = {
   demo: "демоверсія",
@@ -57,7 +71,7 @@ interface ExamMeta {
 
 interface ExamRow {
   id: string
-  subject: SubjectId
+  subject: OutputSubjectId
   title: string
   year: number
   kind: string
@@ -79,6 +93,7 @@ interface RawTask {
   question_type: string
   answers: RawAnswer[]
   correct_answer: string[]
+  assessment_section: string | null
   v1_text_benchmark_eligible: boolean
   v2_canonical_text_benchmark_eligible: boolean
   with_photo: boolean
@@ -133,57 +148,71 @@ async function main() {
   for (const exam of exams) {
     if (!(exam.subject in SUBJECTS)) continue
 
-    const questions: Question[] = []
-    for (const task of tasksByExam.get(exam.exam_uid) ?? []) {
-      if (
-        !task.v1_text_benchmark_eligible &&
-        !task.v2_canonical_text_benchmark_eligible
-      ) {
-        continue
-      }
-      if (task.with_photo) continue
-      if (
-        task.question_type !== "single_choice" &&
-        task.question_type !== "multi_select"
-      ) {
-        continue
-      }
-
-      const correct = task.correct_answer ?? []
-      const keys = new Set(task.answers.map((answer) => answer.answer))
-      if (correct.length === 0 || !correct.every((key) => keys.has(key)))
-        continue
-
-      const options = task.answers
-        .map((answer) => ({ key: answer.answer, text: clean(answer.text) }))
-        .filter((option) => option.text.length > 0)
-      if (options.length < 2) continue
-
-      questions.push({
-        id: task.task_uid,
-        type: task.question_type === "multi_select" ? "multi" : "single",
-        question: clean(task.question),
-        options,
-        correct,
-      })
-    }
-
-    if (questions.length === 0) continue
-
     const kind = exam.exam_kind === "nmt" ? "НМТ" : "ЗНО"
     const variant = VARIANTS[exam.exam_variant] ?? exam.exam_variant
+    const baseId = exam.exam_uid.replace(/:/g, "-")
 
-    rows.push({
-      id: exam.exam_uid.replace(/:/g, "-"),
-      subject: exam.subject as SubjectId,
-      title: `${kind} ${exam.exam_year} · ${variant}`,
-      year: exam.exam_year,
-      kind: exam.exam_kind,
-      variant: exam.exam_variant,
-      originalQuestionCount: exam.num_tasks,
-      sourceUrl: exam.official_exam_page_url,
-      questions,
-    })
+    for (const output of OUTPUT_SUBJECTS) {
+      if (output.source !== exam.subject) continue
+
+      const questions: Question[] = []
+      for (const task of tasksByExam.get(exam.exam_uid) ?? []) {
+        if (output.section && task.assessment_section !== output.section) {
+          continue
+        }
+        if (
+          !task.v1_text_benchmark_eligible &&
+          !task.v2_canonical_text_benchmark_eligible
+        ) {
+          continue
+        }
+        if (task.with_photo) continue
+        if (
+          task.question_type !== "single_choice" &&
+          task.question_type !== "multi_select"
+        ) {
+          continue
+        }
+
+        const correct = task.correct_answer ?? []
+        const keys = new Set(task.answers.map((answer) => answer.answer))
+        if (correct.length === 0 || !correct.every((key) => keys.has(key)))
+          continue
+
+        const options = task.answers
+          .map((answer) => ({ key: answer.answer, text: clean(answer.text) }))
+          .filter((option) => option.text.length > 0)
+        if (options.length < 2) continue
+
+        questions.push({
+          id: task.task_uid,
+          type: task.question_type === "multi_select" ? "multi" : "single",
+          question: clean(task.question),
+          options,
+          correct,
+        })
+      }
+
+      if (questions.length === 0) continue
+
+      rows.push({
+        id:
+          output.id === "literature"
+            ? baseId.replace(/^ukrainian-/, "literature-")
+            : baseId,
+        subject: output.id,
+        title:
+          output.id === "literature"
+            ? `${kind} ${exam.exam_year} · ${variant} (література)`
+            : `${kind} ${exam.exam_year} · ${variant}`,
+        year: exam.exam_year,
+        kind: exam.exam_kind,
+        variant: exam.exam_variant,
+        originalQuestionCount: exam.num_tasks,
+        sourceUrl: exam.official_exam_page_url,
+        questions,
+      })
+    }
   }
 
   rows.sort(
@@ -195,7 +224,7 @@ async function main() {
 
   await mkdir(OUT_DIR, { recursive: true })
 
-  for (const subject of Object.keys(SUBJECTS) as SubjectId[]) {
+  for (const { id: subject } of OUTPUT_SUBJECTS) {
     const subjectRows = rows.filter((exam) => exam.subject === subject)
     const lines = [
       "// Generated by apps/web/scripts/generate-nmt-tests.ts — do not edit by hand.",

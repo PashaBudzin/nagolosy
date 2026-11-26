@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest"
 import { NMT_EXAMS as ukrainian } from "@/data/nmt-ukrainian"
+import { NMT_EXAMS as literature } from "@/data/nmt-literature"
 import { NMT_EXAMS as history } from "@/data/nmt-history"
 import { NMT_EXAMS as geography } from "@/data/nmt-geography"
 import { NMT_EXAMS as math } from "@/data/nmt-math"
@@ -8,6 +9,7 @@ import { isNmtAnswerCorrect, type NmtExam, type NmtSubjectId } from "@/lib/nmt"
 
 const bySubject: { subject: NmtSubjectId; exams: NmtExam[] }[] = [
   { subject: "ukrainian", exams: ukrainian },
+  { subject: "literature", exams: literature },
   { subject: "history", exams: history },
   { subject: "geography", exams: geography },
   { subject: "math", exams: math },
@@ -17,7 +19,7 @@ const bySubject: { subject: NmtSubjectId; exams: NmtExam[] }[] = [
 describe("nmt exam data", () => {
   it("has a large number of exams", () => {
     const total = bySubject.reduce((sum, group) => sum + group.exams.length, 0)
-    expect(total).toBe(184)
+    expect(total).toBe(226)
   })
 
   it("has unique exam ids", () => {
