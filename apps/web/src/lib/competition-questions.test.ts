@@ -8,6 +8,7 @@ import { getWordData } from "@/lib/stress"
 import {
   COMPETITION_CATEGORIES,
   buildCompetitionQuestions,
+  buildNmtCompetitionQuestions,
 } from "@/lib/competition-questions"
 import type {
   CompetitionCategory,
@@ -38,6 +39,8 @@ function expectValidQuestions(questions: CompetitionQuestion[], count: number) {
 describe("buildCompetitionQuestions", () => {
   it("builds the requested number of questions for every category", () => {
     for (const category of COMPETITION_CATEGORIES) {
+      // NMT questions require lazy-loaded exam data (async builder below).
+      if (category.id === "nmt") continue
       expectValidQuestions(buildCompetitionQuestions(config(category.id)), 10)
     }
   })
@@ -97,5 +100,10 @@ describe("buildCompetitionQuestions", () => {
     for (const question of questions) {
       expect(groupPrompts.has(question.prompt)).toBe(true)
     }
+  })
+
+  it("builds NMT questions from the lazy exam data", async () => {
+    const questions = await buildNmtCompetitionQuestions(config("nmt"))
+    expectValidQuestions(questions, 10)
   })
 })

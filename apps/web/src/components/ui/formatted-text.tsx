@@ -82,7 +82,7 @@ export function segmentLine(line: string): Segment[] {
 
     // Fill-in-the-blank runs are plain text, never LaTeX subscripts.
     if (character === "_" && line[index + 1] === "_") {
-      if (mode === "math") flush()
+      flush()
       let end = index
       while (line[end] === "_") end++
       segments.push({ type: "text", value: line.slice(index, end) })

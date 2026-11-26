@@ -42,6 +42,7 @@ const CATEGORIES = new Set<CompetitionCategory>([
   "idioms",
   "history",
   "terms",
+  "nmt",
 ])
 
 interface PlayerAnswer {

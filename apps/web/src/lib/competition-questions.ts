@@ -8,6 +8,8 @@ import { HISTORY_ENTRIES, buildHistoryQuizOptions } from "@/lib/history"
 import { TERM_ENTRIES } from "@/lib/terms"
 import { buildMatchOptions, type MatchItem } from "@/lib/match"
 import { displayWord, getWordData, shuffleArray } from "@/lib/stress"
+import { NMT_SUBJECTS, type NmtSubjectId } from "@/lib/nmt"
+import { loadNmtExams } from "@/lib/nmt-exams"
 import type {
   CompetitionCategory,
   CompetitionConfig,
@@ -33,6 +35,11 @@ export const COMPETITION_CATEGORIES: {
     description: "Коли відбулася подія?",
   },
   { id: "terms", label: "Терміни", description: "Що означає термін?" },
+  {
+    id: "nmt",
+    label: "НМТ тести",
+    description: "Завдання з пробних тестів ЗНО та НМТ",
+  },
 ]
 
 export const COMPETITION_CATEGORY_LABELS: Record<CompetitionCategory, string> =
@@ -41,6 +48,7 @@ export const COMPETITION_CATEGORY_LABELS: Record<CompetitionCategory, string> =
     idioms: "Фразеологізми",
     history: "Історія дати",
     terms: "Терміни",
+    nmt: "НМТ тести",
   }
 
 export const COMPETITION_GROUPS: Record<
@@ -51,6 +59,16 @@ export const COMPETITION_GROUPS: Record<
   idioms: IDIOM_GROUPS.map((group) => ({ id: group.id, name: group.name })),
   history: HISTORY_GROUPS.map((group) => ({ id: group.id, name: group.name })),
   terms: TERM_GROUPS.map((group) => ({ id: group.id, name: group.name })),
+  nmt: NMT_SUBJECTS.map((subject, index) => ({
+    id: index,
+    name: subject.label,
+  })),
+}
+
+function nmtSubjectForGroupId(groupId: number | "all"): NmtSubjectId[] {
+  if (groupId === "all") return NMT_SUBJECTS.map((subject) => subject.id)
+  const subject = NMT_SUBJECTS[groupId]
+  return subject ? [subject.id] : []
 }
 
 function allIndices(length: number): number[] {
@@ -85,6 +103,9 @@ function poolFor(
         TERM_GROUPS.find((group) => group.id === groupId)?.termIndices ?? []
       )
     }
+    case "nmt":
+      // NMT questions are built asynchronously from lazy-loaded exam chunks.
+      return []
   }
 }
 
@@ -186,6 +207,47 @@ function termQuestions(pool: number[], count: number): CompetitionQuestion[] {
   return questions
 }
 
+/**
+ * NMT exams live in lazy-loaded chunks, so questions for this category are
+ * built asynchronously. Only one-answer, text-only tasks are used — the
+ * multiplayer UI shows a single choice per question.
+ */
+export async function buildNmtCompetitionQuestions(
+  config: CompetitionConfig
+): Promise<CompetitionQuestion[]> {
+  const requested = Math.min(Math.max(Math.round(config.questionCount), 1), 30)
+  const subjects = nmtSubjectForGroupId(config.groupId)
+  const exams = (await Promise.all(subjects.map(loadNmtExams))).flat()
+  const questions: CompetitionQuestion[] = []
+
+  for (const exam of exams) {
+    for (const question of shuffleArray(exam.questions)) {
+      if (questions.length >= requested) break
+      if (question.type !== "single" || question.imageUrl) continue
+      if (question.question.length > 500) continue
+      if (question.options.length < 2 || question.correct.length !== 1) continue
+
+      const correct = question.options.find(
+        (option) => option.key === question.correct[0]
+      )
+      if (!correct) continue
+
+      const options = shuffleArray(
+        question.options.map((option) => option.text)
+      )
+      if (new Set(options).size !== options.length) continue
+
+      questions.push({
+        prompt: question.question,
+        options,
+        correctIndex: options.indexOf(correct.text),
+      })
+    }
+  }
+
+  return shuffleArray(questions).slice(0, requested)
+}
+
 export function buildCompetitionQuestions(
   config: CompetitionConfig
 ): CompetitionQuestion[] {
@@ -201,5 +263,8 @@ export function buildCompetitionQuestions(
       return historyQuestions(pool, requested)
     case "terms":
       return termQuestions(pool, requested)
+    case "nmt":
+      // Built by buildNmtCompetitionQuestions (needs lazy-loaded exam data).
+      return []
   }
 }

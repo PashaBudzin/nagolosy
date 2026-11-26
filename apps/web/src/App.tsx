@@ -16,6 +16,9 @@ import { AnswersHistory } from "@/pages/answers-history"
 import { AnswersTerms } from "@/pages/answers-terms"
 import { AnswersVisualHistory } from "@/pages/answers-visual-history"
 import { Competition } from "@/pages/competition"
+import { NmtTests } from "@/pages/nmt-tests"
+import { NmtTest } from "@/pages/nmt-test"
+import { Credits } from "@/pages/credits"
 
 export function App() {
   return (
@@ -41,6 +44,9 @@ export function App() {
           element={<AnswersVisualHistory />}
         />
         <Route path="/competition" element={<Competition />} />
+        <Route path="/nmt-tests" element={<NmtTests />} />
+        <Route path="/nmt-test/:examId" element={<NmtTest />} />
+        <Route path="/credits" element={<Credits />} />
       </Routes>
     </BrowserRouter>
   )

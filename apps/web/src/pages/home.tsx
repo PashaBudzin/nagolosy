@@ -1,6 +1,6 @@
 import { useState } from "react"
 import { useNavigate } from "react-router-dom"
-import { RiGroupLine } from "@remixicon/react"
+import { RiFileList3Line, RiGroupLine } from "@remixicon/react"
 import { GROUPS } from "@/data/groups"
 import { IDIOM_GROUPS } from "@/data/idiom-groups"
 import { HISTORY_GROUPS } from "@/data/history-groups"
@@ -193,6 +193,17 @@ export function Home() {
             2–10 гравців
           </span>
         </Button>
+        <Button
+          variant="secondary"
+          className="h-auto min-h-10 justify-start py-2"
+          onClick={() => navigate("/nmt-tests")}
+        >
+          <RiFileList3Line />
+          НМТ пробні тести
+          <span className="ml-1 text-xs text-muted-foreground">
+            184 варіанти
+          </span>
+        </Button>
       </div>
 
       <div className="flex flex-wrap gap-2">
@@ -346,6 +357,12 @@ export function Home() {
           onShowAnswers={() => navigate("/answers/visual-history")}
         />
       )}
+
+      <div className="pt-2 text-center">
+        <Button variant="link" size="sm" onClick={() => navigate("/credits")}>
+          Подяки та джерела
+        </Button>
+      </div>
     </div>
   )
 }

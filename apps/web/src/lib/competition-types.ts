@@ -3,7 +3,8 @@
  * `apps/server/src/protocol.ts` — keep the two files in sync.
  */
 
-export type CompetitionCategory = "words" | "idioms" | "history" | "terms"
+export type CompetitionCategory =
+  "words" | "idioms" | "history" | "terms" | "nmt"
 
 export interface CompetitionConfig {
   category: CompetitionCategory

@@ -37,6 +37,38 @@ when empty.
 > instance, in-memory rooms are only shared between clients pinned to the same
 > instance. Use an external store (for example Redis) for cross-instance rooms.
 
+## НМТ пробні тести
+
+Open `/nmt-tests` (or the **НМТ пробні тести** button on the home page) to browse
+shortened practice sets built from past ЗНО/НМТ exams (184 sets across five
+subjects, including English). Pick a subject from the dropdown, choose a year
+and variant, then work
+through every question with question navigation, flags and a timer. Results
+include a per-question review. Data lives in `apps/web/src/data/nmt-*.ts`
+(lazy-loaded per subject) and is regenerated with:
+
+```bash
+bun run apps/web/scripts/generate-nmt-tests.ts
+bun run apps/web/scripts/generate-nmt-english.ts
+```
+
+Because only text-only single/multi-choice tasks are kept, these are **shortened
+practice sets**, not complete exam forms — each row shows `kept/original` task
+counts. Use the **Швидка сесія** buttons for a quick random 10/20/30-question
+session. The same question pools are available in group competitions under the
+**НМТ тести** category.
+
+Sources and licences are listed on the `/credits` page (linked from the home
+page and the exam browser).
+
+> **Licence notice:** the questions come from the
+> [ZNO-Eval](https://huggingface.co/datasets/NLPForUA/zno-eval) dataset. The
+> maintainers license only their annotations (CC BY 4.0) and explicitly grant **no
+> rights** to the exam content itself, which was created for УЦОЯО. Keep the
+> attribution shown in the UI, and obtain permission from the rights holders (or
+> confirm an applicable educational-use exception) before publishing this content
+> in a public product.
+
 ## Build and run
 
 ```bash

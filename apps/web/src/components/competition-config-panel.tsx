@@ -12,12 +12,14 @@ interface CompetitionConfigPanelProps {
   onChange: (config: Partial<CompetitionConfig>) => void
 }
 
-const QUESTION_COUNTS = [5, 10, 15, 20]
+const QUESTION_COUNTS = [5, 10, 15, 20, 30]
 const TIME_OPTIONS = [
   { value: 10_000, label: "10 секунд" },
   { value: 15_000, label: "15 секунд" },
   { value: 20_000, label: "20 секунд" },
   { value: 30_000, label: "30 секунд" },
+  { value: 60_000, label: "60 секунд" },
+  { value: 120_000, label: "120 секунд" },
 ]
 
 const selectClassName =

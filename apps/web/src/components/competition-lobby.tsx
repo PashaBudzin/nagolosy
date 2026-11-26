@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import {
   RiCheckLine,
   RiFileCopyLine,
@@ -7,10 +7,15 @@ import {
 } from "@remixicon/react"
 import { Button } from "@/components/ui/button"
 import { CompetitionConfigPanel } from "@/components/competition-config-panel"
-import { buildCompetitionQuestions } from "@/lib/competition-questions"
+import {
+  buildCompetitionQuestions,
+  buildNmtCompetitionQuestions,
+} from "@/lib/competition-questions"
+
 import type {
   CompetitionConfig,
   CompetitionPlayer,
+  CompetitionQuestion,
 } from "@/lib/competition-types"
 import { cn } from "@/lib/utils"
 
@@ -38,8 +43,41 @@ export function CompetitionLobby({
   onLeave,
 }: CompetitionLobbyProps) {
   const [copied, setCopied] = useState(false)
+  const [nmtResult, setNmtResult] = useState<{
+    key: string
+    questions: CompetitionQuestion[]
+  } | null>(null)
   const connectedCount = players.filter((player) => player.connected).length
-  const questions = buildCompetitionQuestions(config)
+
+  const { category, groupId, questionCount, timePerQuestionMs } = config
+  const nmtKey = `${groupId}-${questionCount}`
+
+  useEffect(() => {
+    if (category !== "nmt") return
+    let active = true
+    const key = `${groupId}-${questionCount}`
+
+    buildNmtCompetitionQuestions({
+      category,
+      groupId,
+      questionCount,
+      timePerQuestionMs,
+    })
+      .then((built) => {
+        if (active) setNmtResult({ key, questions: built })
+      })
+      .catch(() => {
+        if (active) setNmtResult({ key, questions: [] })
+      })
+
+    return () => {
+      active = false
+    }
+  }, [category, groupId, questionCount, timePerQuestionMs])
+
+  const nmtQuestions = nmtResult?.key === nmtKey ? nmtResult.questions : []
+  const questions =
+    category === "nmt" ? nmtQuestions : buildCompetitionQuestions(config)
   const canStart = connectedCount >= 2 && questions.length >= 2
 
   const inviteLink = `${window.location.origin}/competition?room=${code}`

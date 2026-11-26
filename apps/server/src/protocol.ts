@@ -4,7 +4,8 @@
  * the two files in sync when the protocol changes.
  */
 
-export type CompetitionCategory = "words" | "idioms" | "history" | "terms"
+export type CompetitionCategory =
+  "words" | "idioms" | "history" | "terms" | "nmt"
 
 export interface CompetitionConfig {
   category: CompetitionCategory
