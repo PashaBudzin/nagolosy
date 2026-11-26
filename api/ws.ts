@@ -1,12 +1,12 @@
 import { createServer } from "node:http"
-import { createApp } from "../apps/server/src/app.ts"
 import { attachRealtime } from "../apps/server/src/realtime.ts"
 
-// Vercel Functions can serve WebSockets by exporting the underlying Node HTTP
-// server (see https://vercel.com/docs/functions/websockets). This function is
-// served at `/api/ws`; the standalone Node server uses the same path.
-const app = createApp()
-const server = createServer(app)
+// Vercel Functions serve WebSockets when the default export is a Node HTTP
+// server. See https://vercel.com/docs/functions/websockets.
+const server = createServer((_req, res) => {
+  res.statusCode = 404
+  res.end("Not found")
+})
 
 attachRealtime(server)
 
