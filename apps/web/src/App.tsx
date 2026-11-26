@@ -15,6 +15,7 @@ import { AnswersIdioms } from "@/pages/answers-idioms"
 import { AnswersHistory } from "@/pages/answers-history"
 import { AnswersTerms } from "@/pages/answers-terms"
 import { AnswersVisualHistory } from "@/pages/answers-visual-history"
+import { Competition } from "@/pages/competition"
 
 export function App() {
   return (
@@ -39,6 +40,7 @@ export function App() {
           path="/answers/visual-history"
           element={<AnswersVisualHistory />}
         />
+        <Route path="/competition" element={<Competition />} />
       </Routes>
     </BrowserRouter>
   )

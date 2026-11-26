@@ -17,7 +17,7 @@ Ukrainian word-stress training SPA ("Наголоси НМТ").
 This is a **Turborepo monorepo** with Bun workspaces:
 
 ```sh
-bun dev          # turbo: Vite dev server + Express server concurrently
+bun dev          # turbo: Vite dev server + Express server concurrently (HTTP + WS)
 bun build        # turbo: web (tsc -b && vite build) + server (tsc emit)
 bun lint         # eslint flat config across the whole repo
 bun format       # prettier --write "**/*.{ts,tsx}"
@@ -31,9 +31,9 @@ bun start        # run the built Express server (apps/web/dist + /api)
 Running a workspace task directly (Bun `--cwd`):
 
 ```sh
-bun --cwd apps/web run dev
-bun --cwd apps/server run dev
-bun --cwd apps/server run start   # runs the built server (serves apps/web/dist + /api)
+bun run --cwd apps/web dev
+bun run --cwd apps/server dev
+bun run --cwd apps/server start # runs the built server (serves apps/web/dist + /api + /ws)
 ```
 
 Pre-commit hook (`.husky/pre-commit`): runs only `bun test`.
@@ -52,24 +52,26 @@ server), but `bun run build` remains the authoritative gate.
 apps/
   web/                  # Vite SPA (@nagolosy/web)
     index.html
-    vite.config.ts      # dev/preview proxy: /api -> http://localhost:3001
+    vite.config.ts      # dev/preview proxy: /api and /ws -> http://localhost:3001
     tsconfig.json       # project references (app + node configs)
     src/
       main.tsx          # entry: renders <App> inside <ThemeProvider>
-      App.tsx           # BrowserRouter with routes: /, /test, /stats, /idiom-test, /idiom-stats, /history-test, /history-stats, /term-test, /term-stats, /visual-history-test, /visual-history-stats, /answers/*
-      pages/            # home.tsx, test.tsx, stats.tsx, idiom-test.tsx, ...
-      components/       # stress-trainer.tsx, session-results.tsx, trainer-shell.tsx, ..., theme-provider.tsx
+      App.tsx           # BrowserRouter with routes: /, /competition, /test, /stats, /idiom-test, /idiom-stats, /history-test, /history-stats, /term-test, /term-stats, /visual-history-test, /visual-history-stats, /answers/*
+      pages/            # home.tsx, competition.tsx, test.tsx, stats.tsx, idiom-test.tsx, ...
+      components/       # stress-trainer.tsx, session-results.tsx, trainer-shell.tsx, competition-*.tsx, ..., theme-provider.tsx
       components/ui/    # shadcn primitives (button.tsx) + shared widgets (kbd.tsx, quiz-mode-switch.tsx)
-      hooks/            # use-sessions.ts, use-idiom-sessions.ts, use-history-sessions.ts, use-term-sessions.ts, use-timer.ts
-      lib/              # stress.ts, idioms.ts, history.ts, match.ts, terms.ts, session-store.ts, session-stats.ts, format.ts, utils.ts (cn)
+      hooks/            # use-sessions.ts, use-idiom-sessions.ts, use-history-sessions.ts, use-term-sessions.ts, use-timer.ts, use-competition.ts
+      lib/              # stress.ts, idioms.ts, history.ts, match.ts, terms.ts, competition-types.ts, competition-questions.ts, session-store.ts, session-stats.ts, format.ts, utils.ts (cn)
       data/             # words.ts, groups.ts, idioms.ts, idiom-groups.ts, history.ts, history-groups.ts, terms.ts, term-groups.ts
       types.ts          # shared types
       index.css         # Tailwind entry + CSS variables + dark mode
   server/               # Express 5 app (@nagolosy/server)
     src/app.ts          # createApp({ staticDir? }): /api/health, API 404, optional SPA serving
-    src/index.ts        # Node entry: listens on PORT (default 3001), serves apps/web/dist
+    src/index.ts        # Node entry: listens on PORT (default 3001), serves apps/web/dist, attaches /ws
+    src/realtime.ts     # WebSocket room state machine: create/join/rejoin, questions, answers, scoring, leaderboard
+    src/protocol.ts     # server copy of the competition wire protocol
     tsconfig.json       # typecheck (src + root api)
-    tsconfig.build.json # emit to dist (for `bun --cwd apps/server run start`)
+    tsconfig.build.json # emit to dist (for `bun run --cwd apps/server start`)
 api/[...all].ts         # Vercel serverless entry: exports the Express app
 turbo.json              # task graph
 vercel.json             # Vercel build/output/functions config
@@ -85,7 +87,12 @@ vercel.json             # Vercel build/output/functions config
 - Dark mode: `.dark` class on `<html>`. Pressing `d` key toggles (handled in `ThemeProvider`).
 - Express app is built by `createApp()` in `apps/server/src/app.ts`, so the same code powers the
   local/Node server (`apps/server/src/index.ts`) and the Vercel function (`api/[...all].ts`).
-- In dev, Vite proxies `/api` to Express on port `3001`; templates should call same-origin `/api/...`.
+- In dev, Vite proxies `/api` and `/ws` to Express on port `3001`; templates should call same-origin `/api/...`.
+- Group competition protocol is duplicated: `apps/server/src/protocol.ts` and
+  `apps/web/src/lib/competition-types.ts`. Update both together.
+- The host browser generates questions (`apps/web/src/lib/competition-questions.ts`) from
+  the normal quiz datasets and sends them to the server on `start`; the server owns timers,
+  answers, scores and the leaderboard.
 
 ## Data model
 
@@ -126,6 +133,7 @@ All trainers (words + idioms + history + terms) are thin wrappers around shared 
 - `idioms.test.ts` validates dataset integrity (every entry splits into idiom + definition, no duplicate idioms, no stray whitespace).
 - `history.test.ts` validates dataset integrity (566 entries, unique events, every date parseable to an epoch, groups cover all facts once); `lib/history.test.ts` checks epoch mapping and that quiz options are 4 unique dates with plausible (chronologically near) distractors.
 - `terms.test.ts` validates dataset integrity (every entry splits into term + definition, no duplicate terms or definitions, groups cover all 222 entries once); `lib/terms.test.ts` checks that `buildMatchOptions()` returns 4 unique options with the correct answer in both modes.
+- `lib/competition-questions.test.ts` checks that competition questions have unique options, a valid `correctIndex` and match the regular quiz answers; also verifies group filtering.
 
 ## State persistence
 
@@ -140,9 +148,11 @@ All trainers (words + idioms + history + terms) are thin wrappers around shared 
 
 - Vercel project root is the repo root. `vercel.json` sets:
   - `buildCommand: bun run build` (Turborepo builds both workspaces), `outputDirectory: apps/web/dist`
-  - `api/[...all].ts` as an `@vercel/node` serverless function behind `/api/*`
+  - `api/[...all].ts` as a Node serverless function behind `/api/*` (runtime auto-detected; do not set `runtime` without a version)
   - SPA fallback rewrite to `/index.html` (filesystem + function routes take precedence)
 - On Vercel the SPA is served from the CDN; the Express app runs only as the `/api` function.
-- Self-hosting the Node server: `bun run build` then `bun --cwd apps/server run start` —
-  Express serves `apps/web/dist` plus `/api`.
+- Self-hosting the Node server: `bun run build` then `bun run --cwd apps/server start` —
+  Express serves `apps/web/dist` plus `/api` and hosts the `/ws` competition rooms.
+- Vercel Functions are HTTP-only; group competitions require the Node server (or a
+  separate WebSocket host). Set `VITE_WS_URL` to point the SPA at a remote WS host.
 - `.env*` files are gitignored (Vercel OIDC token present in local `.env.local`).

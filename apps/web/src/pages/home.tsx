@@ -1,5 +1,6 @@
 import { useState } from "react"
 import { useNavigate } from "react-router-dom"
+import { RiGroupLine } from "@remixicon/react"
 import { GROUPS } from "@/data/groups"
 import { IDIOM_GROUPS } from "@/data/idiom-groups"
 import { HISTORY_GROUPS } from "@/data/history-groups"
@@ -179,6 +180,20 @@ export function Home() {
                 ? "Історичні терміни НМТ"
                 : "Історія візуальні об'єкти"}
       </h1>
+
+      <div className="flex flex-wrap gap-2">
+        <Button
+          variant="secondary"
+          className="h-auto min-h-10 justify-start py-2"
+          onClick={() => navigate("/competition")}
+        >
+          <RiGroupLine />
+          Змагання в групі
+          <span className="ml-1 text-xs text-muted-foreground">
+            2–10 гравців
+          </span>
+        </Button>
+      </div>
 
       <div className="flex flex-wrap gap-2">
         <Button
