@@ -24,6 +24,9 @@ const MAX_ROOMS = 500
 const REVEAL_PAUSE_MS = 4_500
 const FINAL_PAUSE_MS = 5_000
 const EMPTY_ROOM_TTL_MS = 5 * 60 * 1000
+const TICK_MS = 250
+const EARLY_REVEAL_MS = 350
+const STALE_SOCKET_MS = 150_000
 const CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
 const CODE_LENGTH = 4
 
@@ -44,6 +47,7 @@ const CATEGORIES = new Set<CompetitionCategory>([
 interface PlayerAnswer {
   optionIndex: number
   correct: boolean
+  /** Elapsed time when the answer was locked in (used for the speed bonus). */
   timeMs: number
 }
 
@@ -56,7 +60,9 @@ interface RoomPlayer {
   score: number
   correct: number
   totalTimeMs: number
+  /** Current selection — still editable until `settled`. */
   answer: PlayerAnswer | null
+  settled: boolean
 }
 
 interface Room {
@@ -69,8 +75,10 @@ interface Room {
   currentIndex: number
   questionStartedAt: number
   timeLimitMs: number
-  timer: ReturnType<typeof setTimeout> | null
-  emptyTimer: ReturnType<typeof setTimeout> | null
+  /** Absolute timestamp for the next phase transition. */
+  phaseDeadline: number
+  /** When the room first became empty, for idle cleanup. */
+  emptySince: number | null
   revealPayload: CompetitionReveal | null
   resultPayload: CompetitionResult | null
 }
@@ -78,6 +86,7 @@ interface Room {
 interface ClientMeta {
   code: string | null
   playerId: string | null
+  lastSeen: number
 }
 
 const rooms = new Map<string, Room>()
@@ -140,7 +149,7 @@ function cleanConfig(raw: unknown, base: CompetitionConfig): CompetitionConfig {
     timePerQuestionMs: clampInt(
       raw.timePerQuestionMs,
       5_000,
-      60_000,
+      120_000,
       base.timePerQuestionMs
     ),
   }
@@ -267,7 +276,7 @@ function questionPayload(room: Room): CompetitionQuestionPayload | undefined {
 function answerProgress(room: Room) {
   const active = connectedPlayers(room)
   return {
-    answered: active.filter((player) => player.answer !== null).length,
+    answered: active.filter((player) => player.settled).length,
     total: active.length,
   }
 }
@@ -289,6 +298,7 @@ function welcomeFor(room: Room, player: RoomPlayer): WelcomeMessage {
     const payload = questionPayload(room)
     if (payload) welcome.question = payload
     welcome.selected = player.answer?.optionIndex ?? null
+    welcome.settled = player.settled
   }
 
   if (room.phase === "reveal" && room.revealPayload) {
@@ -302,19 +312,7 @@ function welcomeFor(room: Room, player: RoomPlayer): WelcomeMessage {
   return welcome
 }
 
-function clearRoomTimers(room: Room) {
-  if (room.timer) {
-    clearTimeout(room.timer)
-    room.timer = null
-  }
-  if (room.emptyTimer) {
-    clearTimeout(room.emptyTimer)
-    room.emptyTimer = null
-  }
-}
-
 function deleteRoom(room: Room, reason?: string) {
-  clearRoomTimers(room)
   rooms.delete(room.code)
 
   for (const player of room.players.values()) {
@@ -334,17 +332,6 @@ function promoteHost(room: Room) {
 
   const next = connectedPlayers(room)[0]
   if (next) room.hostId = next.id
-}
-
-function scheduleEmptyCleanup(room: Room) {
-  if (connectedPlayers(room).length > 0) return
-  if (room.emptyTimer) return
-
-  room.emptyTimer = setTimeout(() => {
-    if (connectedPlayers(room).length === 0) {
-      deleteRoom(room, "Кімната закрита через неактивність")
-    }
-  }, EMPTY_ROOM_TTL_MS)
 }
 
 function removePlayer(room: Room, player: RoomPlayer) {
@@ -369,11 +356,19 @@ function markDisconnected(room: Room, player: RoomPlayer) {
     return
   }
 
+  // Leaving mid-round commits whatever was selected at that moment.
+  if (room.phase === "playing" && player.answer && !player.settled) {
+    player.settled = true
+    player.answer.timeMs = Math.min(
+      room.timeLimitMs,
+      Math.max(0, Date.now() - room.questionStartedAt)
+    )
+  }
+
   promoteHost(room)
   broadcastPlayers(room)
-  scheduleEmptyCleanup(room)
 
-  // Losing the last answer may unblock an early reveal.
+  // Losing the last unsettled player may unblock an early reveal.
   maybeScheduleReveal(room)
 }
 
@@ -399,8 +394,8 @@ function createRoom(config: CompetitionConfig): Room {
     currentIndex: 0,
     questionStartedAt: 0,
     timeLimitMs: config.timePerQuestionMs,
-    timer: null,
-    emptyTimer: null,
+    phaseDeadline: 0,
+    emptySince: null,
     revealPayload: null,
     resultPayload: null,
   }
@@ -417,16 +412,19 @@ function addPlayer(room: Room, name: string, socket: WebSocket): RoomPlayer {
     correct: 0,
     totalTimeMs: 0,
     answer: null,
+    settled: false,
   }
   room.players.set(player.id, player)
-  clients.set(socket, { code: room.code, playerId: player.id })
+  const meta = getMeta(socket)
+  meta.code = room.code
+  meta.playerId = player.id
   return player
 }
 
 function getMeta(socket: WebSocket): ClientMeta {
   let meta = clients.get(socket)
   if (!meta) {
-    meta = { code: null, playerId: null }
+    meta = { code: null, playerId: null, lastSeen: Date.now() }
     clients.set(socket, meta)
   }
   return meta
@@ -456,7 +454,11 @@ function askQuestion(room: Room) {
   room.phase = "playing"
   room.questionStartedAt = Date.now()
   room.timeLimitMs = room.config.timePerQuestionMs
-  for (const player of room.players.values()) player.answer = null
+  room.phaseDeadline = room.questionStartedAt + room.timeLimitMs
+  for (const player of room.players.values()) {
+    player.answer = null
+    player.settled = false
+  }
 
   const payload = questionPayload(room)
   if (!payload) {
@@ -470,27 +472,22 @@ function askQuestion(room: Room) {
     answered: 0,
     total: connectedPlayers(room).length,
   })
-
-  if (room.timer) clearTimeout(room.timer)
-  room.timer = setTimeout(() => revealCurrent(room), room.timeLimitMs)
 }
 
 function maybeScheduleReveal(room: Room) {
   if (room.phase !== "playing") return
 
   const active = connectedPlayers(room)
-  if (active.length === 0 || !active.every((player) => player.answer)) return
+  if (active.length === 0 || !active.every((player) => player.settled)) return
 
-  if (room.timer) clearTimeout(room.timer)
-  room.timer = setTimeout(() => revealCurrent(room), 350)
+  room.phaseDeadline = Math.min(
+    room.phaseDeadline,
+    Date.now() + EARLY_REVEAL_MS
+  )
 }
 
 function revealCurrent(room: Room) {
   if (room.phase !== "playing") return
-  if (room.timer) {
-    clearTimeout(room.timer)
-    room.timer = null
-  }
 
   const question = room.questions[room.currentIndex]
   if (!question) {
@@ -501,16 +498,23 @@ function revealCurrent(room: Room) {
   const answers: CompetitionAnswer[] = []
   for (const player of room.players.values()) {
     const answer = player.answer
+    // An unconfirmed selection is settled automatically at the deadline, with
+    // no speed bonus.
+    const timeMs = answer
+      ? player.settled
+        ? answer.timeMs
+        : room.timeLimitMs
+      : null
     let delta = 0
 
     if (answer?.correct) {
-      const remaining = Math.max(0, room.timeLimitMs - answer.timeMs)
+      const remaining = Math.max(0, room.timeLimitMs - (timeMs ?? 0))
       delta = 100 + Math.round((99 * remaining) / room.timeLimitMs)
       player.score += delta
       player.correct += 1
     }
 
-    player.totalTimeMs += answer?.timeMs ?? room.timeLimitMs
+    player.totalTimeMs += timeMs ?? room.timeLimitMs
 
     answers.push({
       playerId: player.id,
@@ -518,7 +522,7 @@ function revealCurrent(room: Room) {
       selected: answer?.optionIndex ?? null,
       correct: answer?.correct ?? false,
       delta,
-      timeMs: answer?.timeMs ?? null,
+      timeMs,
     })
   }
 
@@ -538,26 +542,55 @@ function revealCurrent(room: Room) {
   broadcast(room, { type: "reveal", reveal })
   broadcastPlayers(room)
 
-  room.timer = setTimeout(() => {
-    room.timer = null
-    if (room.phase !== "reveal") return
+  room.phaseDeadline = Date.now() + reveal.nextInMs
+}
 
-    if (isLast) {
-      finishGame(room)
-    } else {
-      room.currentIndex += 1
-      askQuestion(room)
+/** Advance out of the reveal phase. Safe to call repeatedly / late. */
+function advanceAfterReveal(room: Room) {
+  if (room.phase !== "reveal") return
+
+  if (room.currentIndex + 1 >= room.questions.length) {
+    finishGame(room)
+  } else {
+    room.currentIndex += 1
+    askQuestion(room)
+  }
+}
+
+/**
+ * Single periodic driver for every room. A lost or delayed timer can no longer
+ * strand a game in `playing` or `reveal`; the deadline is re-checked each tick.
+ */
+function tickRooms() {
+  const now = Date.now()
+
+  for (const room of rooms.values()) {
+    if (room.phase === "playing" && now >= room.phaseDeadline) {
+      revealCurrent(room)
+    } else if (room.phase === "reveal" && now >= room.phaseDeadline) {
+      advanceAfterReveal(room)
     }
-  }, reveal.nextInMs)
+
+    if (connectedPlayers(room).length === 0) {
+      if (room.emptySince === null) room.emptySince = now
+      else if (now - room.emptySince >= EMPTY_ROOM_TTL_MS) {
+        deleteRoom(room, "Кімната закрита через неактивність")
+      }
+    } else {
+      room.emptySince = null
+    }
+  }
+
+  // Drop sockets that stopped answering heartbeats (half-open connections).
+  // The close handler performs the actual player/room cleanup.
+  for (const [socket, meta] of clients) {
+    if (now - meta.lastSeen > STALE_SOCKET_MS) socket.terminate()
+  }
 }
 
 function finishGame(room: Room) {
-  if (room.timer) {
-    clearTimeout(room.timer)
-    room.timer = null
-  }
-
   room.phase = "finished"
+  room.phaseDeadline = 0
   room.revealPayload = null
 
   const result: CompetitionResult = {
@@ -571,8 +604,8 @@ function finishGame(room: Room) {
 }
 
 function resetToLobby(room: Room) {
-  clearRoomTimers(room)
   room.phase = "lobby"
+  room.phaseDeadline = 0
   room.questions = []
   room.currentIndex = 0
   room.revealPayload = null
@@ -583,6 +616,7 @@ function resetToLobby(room: Room) {
     player.correct = 0
     player.totalTimeMs = 0
     player.answer = null
+    player.settled = false
   }
 
   broadcast(room, {
@@ -597,11 +631,17 @@ export function attachRealtime(
   path = "/api/ws"
 ): WebSocketServer {
   const wss = new WebSocketServer({ server, path })
+  const tick = setInterval(tickRooms, TICK_MS)
+
+  wss.on("close", () => {
+    clearInterval(tick)
+  })
 
   wss.on("connection", (socket) => {
     getMeta(socket)
 
     socket.on("message", (data) => {
+      getMeta(socket).lastSeen = Date.now()
       let message: ClientMessage
       try {
         message = JSON.parse(data.toString()) as ClientMessage
@@ -722,12 +762,11 @@ function handleMessage(socket: WebSocket, message: ClientMessage) {
 
       player.socket = socket
       player.connected = true
-      clients.set(socket, { code: room.code, playerId: player.id })
+      meta.code = room.code
+      meta.playerId = player.id
+      meta.lastSeen = Date.now()
 
-      if (room.emptyTimer) {
-        clearTimeout(room.emptyTimer)
-        room.emptyTimer = null
-      }
+      room.emptySince = null
 
       promoteHost(room)
       send(socket, welcomeFor(room, player))
@@ -807,7 +846,7 @@ function handleMessage(socket: WebSocket, message: ClientMessage) {
         timePerQuestionMs: clampInt(
           room.config.timePerQuestionMs,
           5_000,
-          60_000,
+          120_000,
           room.config.timePerQuestionMs
         ),
       }
@@ -820,6 +859,7 @@ function handleMessage(socket: WebSocket, message: ClientMessage) {
         roomPlayer.correct = 0
         roomPlayer.totalTimeMs = 0
         roomPlayer.answer = null
+        roomPlayer.settled = false
       }
 
       broadcast(room, {
@@ -838,7 +878,7 @@ function handleMessage(socket: WebSocket, message: ClientMessage) {
       const { room, player } = context
       if (room.phase !== "playing") return
       if (message.index !== room.currentIndex) return
-      if (player.answer) return
+      if (player.settled) return
 
       const question = room.questions[room.currentIndex]
       if (!question) return
@@ -851,14 +891,12 @@ function handleMessage(socket: WebSocket, message: ClientMessage) {
         return
       }
 
-      const timeMs = Math.min(
-        room.timeLimitMs,
-        Math.max(0, Date.now() - room.questionStartedAt)
-      )
+      // The speed bonus is measured when the answer is locked in, not when it
+      // is first selected — changing your mind must not buy extra time.
       player.answer = {
         optionIndex: message.optionIndex,
         correct: message.optionIndex === question.correctIndex,
-        timeMs,
+        timeMs: 0,
       }
 
       send(socket, {
@@ -870,7 +908,38 @@ function handleMessage(socket: WebSocket, message: ClientMessage) {
         type: "answerProgress",
         ...answerProgress(room),
       })
+      return
+    }
+
+    case "settle": {
+      const context = currentRoom(socket)
+      if (!context) return
+
+      const { room, player } = context
+      if (room.phase !== "playing") return
+      if (message.index !== room.currentIndex) return
+      if (player.settled || !player.answer) return
+
+      player.settled = true
+      player.answer.timeMs = Math.min(
+        room.timeLimitMs,
+        Math.max(0, Date.now() - room.questionStartedAt)
+      )
+
+      send(socket, { type: "answerLocked", index: room.currentIndex })
+      broadcast(room, {
+        type: "answerProgress",
+        ...answerProgress(room),
+      })
       maybeScheduleReveal(room)
+      return
+    }
+
+    case "resync": {
+      const context = currentRoom(socket)
+      if (!context) return
+
+      send(socket, welcomeFor(context.room, context.player))
       return
     }
 

@@ -82,7 +82,12 @@ export type ClientMessage =
   | { type: "leave" }
   | { type: "updateConfig"; config: Partial<CompetitionConfig> }
   | { type: "start"; questions: CompetitionQuestion[] }
+  /** Select or change a selection. Editable until `settle` or the deadline. */
   | { type: "answer"; index: number; optionIndex: number }
+  /** Lock in the current selection for the rest of the round. */
+  | { type: "settle"; index: number }
+  /** Ask the server to resend the current state (recovers dropped messages). */
+  | { type: "resync" }
   | { type: "playAgain" }
   | { type: "ping" }
 
@@ -96,7 +101,10 @@ export interface WelcomeMessage {
   players: CompetitionPlayer[]
   config: CompetitionConfig
   question?: CompetitionQuestionPayload
+  /** Current (still editable) selection for the active question. */
   selected?: number | null
+  /** Whether that selection has been locked in with `settle`. */
+  settled?: boolean
   reveal?: CompetitionReveal
   result?: CompetitionResult
   answeredCount?: { answered: number; total: number }
@@ -108,7 +116,9 @@ export type ServerMessage =
   | { type: "config"; config: CompetitionConfig }
   | { type: "gameStarted"; total: number; timePerQuestionMs: number }
   | { type: "question"; question: CompetitionQuestionPayload }
+  /** Confirms a selection (which may still be changed until settling). */
   | { type: "answerAccepted"; index: number; optionIndex: number }
+  | { type: "answerLocked"; index: number }
   | { type: "answerProgress"; answered: number; total: number }
   | { type: "reveal"; reveal: CompetitionReveal }
   | { type: "gameEnd"; result: CompetitionResult }

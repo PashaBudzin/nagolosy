@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react"
 import { RiCheckLine, RiCloseLine, RiTimeLine } from "@remixicon/react"
 import { Button } from "@/components/ui/button"
+import { FormattedText } from "@/components/ui/formatted-text"
 import type {
   AnswerProgress,
   CompetitionCategory,
@@ -86,8 +87,11 @@ interface CompetitionGameProps {
   question: CompetitionQuestionPayload
   reveal: CompetitionReveal | null
   selected: number | null
+  settled: boolean
+  connected: boolean
   progress: AnswerProgress | null
   onAnswer: (index: number, optionIndex: number) => void
+  onSettle: (index: number) => void
   onLeave: () => void
 }
 
@@ -99,8 +103,11 @@ export function CompetitionGame({
   question,
   reveal,
   selected,
+  settled,
+  connected,
   progress,
   onAnswer,
+  onSettle,
   onLeave,
 }: CompetitionGameProps) {
   const [remainingMs, setRemainingMs] = useState(question.remainingMs)
@@ -171,8 +178,8 @@ export function CompetitionGame({
         {question.hint && (
           <p className="mb-1 text-xs text-muted-foreground">{question.hint}</p>
         )}
-        <p className="font-serif text-2xl font-medium text-balance">
-          {question.prompt}
+        <p className="font-serif text-2xl font-medium text-balance whitespace-pre-line">
+          <FormattedText text={question.prompt} />
         </p>
       </div>
 
@@ -195,7 +202,9 @@ export function CompetitionGame({
               className += " border-border bg-muted/50 text-muted-foreground"
             }
           } else if (isSelected) {
-            className += " border-primary bg-primary/10 text-foreground"
+            className += settled
+              ? " border-primary bg-primary/15 font-medium text-foreground"
+              : " border-primary bg-primary/10 text-foreground"
           } else if (timeUp) {
             className += " border-border bg-muted/50 text-muted-foreground"
           } else {
@@ -209,7 +218,11 @@ export function CompetitionGame({
               type="button"
               className={className}
               disabled={
-                phase !== "playing" || selected !== null || timeUp || !!reveal
+                phase !== "playing" ||
+                !connected ||
+                settled ||
+                timeUp ||
+                !!reveal
               }
               onClick={() => onAnswer(question.index, index)}
             >
@@ -230,16 +243,40 @@ export function CompetitionGame({
                   }
                 />
               ) : (
-                <span>{option}</span>
+                <span>
+                  <FormattedText text={option} />
+                </span>
               )}
             </button>
           )
         })}
       </div>
 
-      {phase === "playing" && selected !== null && (
+      {phase === "playing" && selected !== null && !settled && !timeUp && (
+        <div className="flex flex-col items-center gap-2">
+          <Button
+            size="lg"
+            disabled={!connected}
+            onClick={() => onSettle(question.index)}
+          >
+            <RiCheckLine />
+            Затвердити відповідь
+          </Button>
+          <p className="text-center text-sm text-muted-foreground">
+            Можете змінити вибір, натиснувши інший варіант.
+          </p>
+        </div>
+      )}
+
+      {phase === "playing" && settled && (
         <p className="text-center text-sm text-muted-foreground">
-          Відповідь прийнято. Чекаємо на інших…
+          Відповідь затверджено. Чекаємо на інших…
+        </p>
+      )}
+
+      {phase === "playing" && timeUp && selected !== null && !settled && (
+        <p className="text-center text-sm text-muted-foreground">
+          Час вийшов — відповідь затверджено автоматично.
         </p>
       )}
 

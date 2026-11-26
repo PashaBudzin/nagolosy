@@ -141,8 +141,11 @@ export function Competition() {
           question={competition.question}
           reveal={competition.reveal}
           selected={competition.selected}
+          settled={competition.settled}
+          connected={competition.status === "connected"}
           progress={competition.progress}
           onAnswer={competition.answer}
+          onSettle={competition.settle}
           onLeave={handleHome}
         />
       ) : (
