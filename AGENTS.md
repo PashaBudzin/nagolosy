@@ -5,7 +5,7 @@ Ukrainian word-stress training SPA ("Наголоси НМТ").
 ## Stack
 
 - React 19, react-router-dom 7, Vite 8, TypeScript ~6, Bun
-- Tailwind CSS v4 (via `@tailwindcss/vite` plugin), CSS variables in `src/index.css` via `@theme inline`
+- Tailwind CSS v4 (via `@tailwindcss/vite` plugin), CSS variables in `apps/web/src/index.css` via `@theme inline`
 - shadcn/ui with `"style": "base-sera"` (not new-york/default), `"baseColor": "olive"`, RSC disabled
 - `@base-ui/react` (not Radix) for UI primitives — e.g. `<Button>` wraps `<ButtonPrimitive>`
 - `class-variance-authority` + `clsx` + `tailwind-merge` (`cn()` in `@/lib/utils`)
@@ -14,15 +14,26 @@ Ukrainian word-stress training SPA ("Наголоси НМТ").
 
 ## Commands
 
+This is a **Turborepo monorepo** with Bun workspaces:
+
 ```sh
-bun dev          # vite dev server
-bun build        # tsc -b && vite build (project references: app + node configs)
-bun lint         # eslint flat config (ts, tsx)
+bun dev          # turbo: Vite dev server + Express server concurrently
+bun build        # turbo: web (tsc -b && vite build) + server (tsc emit)
+bun lint         # eslint flat config across the whole repo
 bun format       # prettier --write "**/*.{ts,tsx}"
-bun typecheck    # tsc --noEmit
-bun test         # vitest run
-bun test:watch   # vitest
-bun preview      # vite preview
+bun typecheck    # turbo: web tsc -b + server tsc -p
+bun test         # turbo: vitest run
+bun test:watch   # turbo: vitest watch
+bun preview      # turbo: vite preview (API calls need the server running)
+bun start        # run the built Express server (apps/web/dist + /api)
+```
+
+Running a workspace task directly (Bun `--cwd`):
+
+```sh
+bun --cwd apps/web run dev
+bun --cwd apps/server run dev
+bun --cwd apps/server run start   # runs the built server (serves apps/web/dist + /api)
 ```
 
 Pre-commit hook (`.husky/pre-commit`): runs only `bun test`.
@@ -30,71 +41,86 @@ Pre-commit hook (`.husky/pre-commit`): runs only `bun test`.
 Recommended verification order for changes: `bun lint && bun typecheck && bun test`.
 
 ⚠️ **Before every push** run `bun run dev` (smoke-check that the app boots) and `bun run build`
-(what the CD pipeline runs — `tsc -b && vite build`). A commit that fails `bun run build`
-passes the pre-commit hook but breaks deployment. Note: `bun typecheck` (`tsc --noEmit`) is
-a no-op with this project-references layout (`tsconfig.json` has `files: []`); `bun run build`
-is the authoritative TypeScript gate — always run it.
+(what the CD pipeline runs). A commit that fails `bun run build` passes the pre-commit hook but
+breaks deployment. `bun typecheck` now checks both workspaces (`tsc -b` for web, `tsc -p` for
+server), but `bun run build` remains the authoritative gate.
 `bun build` (no `run`) invokes Bun's native bundler, NOT the npm script.
 
 ## Project structure
 
 ```
-src/
-  main.tsx            # entry: renders <App> inside <ThemeProvider>
-  App.tsx             # BrowserRouter with routes: /, /test, /stats, /idiom-test, /idiom-stats, /history-test, /history-stats, /term-test, /term-stats, /visual-history-test, /visual-history-stats
-  pages/              # home.tsx, test.tsx, stats.tsx, idiom-test.tsx, idiom-stats.tsx, history-test.tsx, history-stats.tsx, term-test.tsx, term-stats.tsx, visual-history-test.tsx, visual-history-stats.tsx
-  components/         # stress-trainer.tsx, session-results.tsx, idiom-trainer.tsx, idiom-session-results.tsx, history-trainer.tsx, history-session-results.tsx, term-trainer.tsx, term-session-results.tsx, trainer-shell.tsx, session-results-shell.tsx, session-page.tsx, stats-page.tsx, theme-provider.tsx
-  components/ui/      # shadcn primitives (button.tsx) + shared widgets (kbd.tsx, quiz-mode-switch.tsx)
-  hooks/              # use-sessions.ts, use-idiom-sessions.ts, use-history-sessions.ts, use-term-sessions.ts (localStorage persistence), use-timer.ts
-  lib/                # stress.ts (word parsing), idioms.ts (idiom parsing + quiz options), history.ts (date parsing + quiz options), match.ts (shared match-quiz mode logic), terms.ts (term parsing), session-store.ts, session-stats.ts, format.ts, utils.ts (cn)
-  data/               # words.ts (word list), groups.ts (group definitions), idioms.ts (idiom list), idiom-groups.ts (idiom group definitions), history.ts (date/event list), history-groups.ts (historical periods), terms.ts (term list), term-groups.ts (term group definitions)
-  types.ts            # shared types
-  index.css           # Tailwind entry + CSS variables + dark mode
+apps/
+  web/                  # Vite SPA (@nagolosy/web)
+    index.html
+    vite.config.ts      # dev/preview proxy: /api -> http://localhost:3001
+    tsconfig.json       # project references (app + node configs)
+    src/
+      main.tsx          # entry: renders <App> inside <ThemeProvider>
+      App.tsx           # BrowserRouter with routes: /, /test, /stats, /idiom-test, /idiom-stats, /history-test, /history-stats, /term-test, /term-stats, /visual-history-test, /visual-history-stats, /answers/*
+      pages/            # home.tsx, test.tsx, stats.tsx, idiom-test.tsx, ...
+      components/       # stress-trainer.tsx, session-results.tsx, trainer-shell.tsx, ..., theme-provider.tsx
+      components/ui/    # shadcn primitives (button.tsx) + shared widgets (kbd.tsx, quiz-mode-switch.tsx)
+      hooks/            # use-sessions.ts, use-idiom-sessions.ts, use-history-sessions.ts, use-term-sessions.ts, use-timer.ts
+      lib/              # stress.ts, idioms.ts, history.ts, match.ts, terms.ts, session-store.ts, session-stats.ts, format.ts, utils.ts (cn)
+      data/             # words.ts, groups.ts, idioms.ts, idiom-groups.ts, history.ts, history-groups.ts, terms.ts, term-groups.ts
+      types.ts          # shared types
+      index.css         # Tailwind entry + CSS variables + dark mode
+  server/               # Express 5 app (@nagolosy/server)
+    src/app.ts          # createApp({ staticDir? }): /api/health, API 404, optional SPA serving
+    src/index.ts        # Node entry: listens on PORT (default 3001), serves apps/web/dist
+    tsconfig.json       # typecheck (src + root api)
+    tsconfig.build.json # emit to dist (for `bun --cwd apps/server run start`)
+api/[...all].ts         # Vercel serverless entry: exports the Express app
+turbo.json              # task graph
+vercel.json             # Vercel build/output/functions config
 ```
 
 ## Key conventions
 
-- Path alias `@/` → `./src/` (configured in both Vite and tsconfig).
-- `tsconfig.json` uses **project references** (`tsconfig.app.json` + `tsconfig.node.json`).
+- Path alias `@/` → `apps/web/src/` (configured in `apps/web/vite.config.ts` + `apps/web/tsconfig.app.json`).
+- `apps/web/tsconfig.json` uses **project references** (`tsconfig.app.json` + `tsconfig.node.json`).
 - `verbatimModuleSyntax: true` → use `import type` for type-only imports.
 - `erasableSyntaxOnly: true` → no enums, no namespaces.
-- Prettier: `semi: false`, `singleQuote: false`, `trailingComma: "es5"`, `tailwindStylesheet: "src/index.css"`.
+- Prettier: `semi: false`, `singleQuote: false`, `trailingComma: "es5"`, `tailwindStylesheet: "apps/web/src/index.css"`.
 - Dark mode: `.dark` class on `<html>`. Pressing `d` key toggles (handled in `ThemeProvider`).
+- Express app is built by `createApp()` in `apps/server/src/app.ts`, so the same code powers the
+  local/Node server (`apps/server/src/index.ts`) and the Vercel function (`api/[...all].ts`).
+- In dev, Vite proxies `/api` to Express on port `3001`; templates should call same-origin `/api/...`.
 
 ## Data model
 
 - Word stress is encoded as **uppercase Ukrainian vowels** in raw strings in `words.ts` (e.g. `"агронОмія"` → stress on о).
-- `parseWord()` in `src/lib/stress.ts` converts to lowercase text + `stressIndices` (character offsets).
+- `parseWord()` in `apps/web/src/lib/stress.ts` converts to lowercase text + `stressIndices` (character offsets).
 - Parenthetical content = explanation (e.g. `"вИгода (користь)"` → explanation `"користь"`).
 - Homonyms with different stress **must** have disambiguating explanations (enforced by test in `words.test.ts`).
-- Words are grouped in `src/data/groups.ts`; not all groups are equal size (group 8 has only 23 words).
-- Idioms are raw strings `"Idiom – definition"` (en-dash separator) in `idioms.ts`; `parseIdiom()` in `src/lib/idioms.ts` splits them.
-- Idiom quiz options are built by `buildQuizOptions()` in `src/lib/idioms.ts` — correct definition + unique distractors (definitions are deduped, so near-identical idioms never collide as options).
-- Idioms are grouped in `src/data/idiom-groups.ts` (11 groups of ~22 entries).
+- Words are grouped in `apps/web/src/data/groups.ts`; not all groups are equal size (group 8 has only 23 words).
+- Idioms are raw strings `"Idiom – definition"` (en-dash separator) in `idioms.ts`; `parseIdiom()` in `apps/web/src/lib/idioms.ts` splits them.
+- Idiom quiz options are built by `buildQuizOptions()` in `apps/web/src/lib/idioms.ts` — correct definition + unique distractors (definitions are deduped, so near-identical idioms never collide as options).
+- Idioms are grouped in `apps/web/src/data/idiom-groups.ts` (11 groups of ~22 entries).
 - History facts are structured `{ date, event }` objects in `history.ts` (566 entries, e.g. `{ date: "988", event: "Запровадження..." }`); dates vary widely (single years, ranges `882–912`, months `травень 1648`, full dates `19 лютого 1861`, centuries `IX–VII ст. до н. е.`, millennia).
-- History quiz options are built by `buildHistoryQuizOptions()` in `src/lib/history.ts` — the correct date + 3 chronologically nearest unique dates (plausible distractors). `dateEpoch()` normalizes any date string to a numeric epoch for distance sorting.
-- History facts are grouped by period in `src/data/history-groups.ts` (5 parent groups named by the source table's periods, e.g. "Найдавніші часи – перша половина XVI ст."). Each parent group is split into **3 chronologically ordered subgroups** (`subgroups` array), so `HISTORY_GROUPS` covers every fact exactly once at both parent and subgroup level.
+- History quiz options are built by `buildHistoryQuizOptions()` in `apps/web/src/lib/history.ts` — the correct date + 3 chronologically nearest unique dates (plausible distractors). `dateEpoch()` normalizes any date string to a numeric epoch for distance sorting.
+- History facts are grouped by period in `apps/web/src/data/history-groups.ts` (5 parent groups named by the source table's periods, e.g. "Найдавніші часи – перша половина XVI ст."). Each parent group is split into **3 chronologically ordered subgroups** (`subgroups` array), so `HISTORY_GROUPS` covers every fact exactly once at both parent and subgroup level.
 - Duplicate history events (same event text, different dates) are disambiguated by appending `(date)` to the later occurrence (e.g. "Масовий голод в Україні (1946–1947)").
-- Terms are raw strings `"Term – definition"` (en-dash separator) in `terms.ts` (222 entries); `parseTerm()` in `src/lib/terms.ts` splits them. Definitions follow the НМТ history program.
-- Terms quiz options are built by `buildMatchOptions()` in `src/lib/match.ts`; terms are grouped in `src/data/term-groups.ts` (22 groups, 19th-century sections combined, revolution sections 21/22 kept separate).
+- Terms are raw strings `"Term – definition"` (en-dash separator) in `terms.ts` (222 entries); `parseTerm()` in `apps/web/src/lib/terms.ts` splits them. Definitions follow the НМТ history program.
+- Terms quiz options are built by `buildMatchOptions()` in `apps/web/src/lib/match.ts`; terms are grouped in `apps/web/src/data/term-groups.ts` (22 groups, 19th-century sections combined, revolution sections 21/22 kept separate).
 
 ## Shared infra
 
 All trainers (words + idioms + history + terms) are thin wrappers around shared shells that own the common session UX:
 
-- `src/components/trainer-shell.tsx` — progress header, timer, ✓/✗ counts, feedback + next button. Trainers inject their question UI as `children`.
-- `src/components/session-results-shell.tsx` — results header (%, ✓/✗, time) + restart/home buttons + scrollable list; rows injected via `renderRow`.
-- `src/components/session-page.tsx` — generic trainer→results page flow: reads indices from router state, redirects to `/` when empty, saves the session on completion. `test.tsx` / `idiom-test.tsx` / `history-test.tsx` / `term-test.tsx` are thin config wrappers.
-- `src/components/stats-page.tsx` — generic stats page (sort, group/status/attempted/explanation/date filters, totals, clear). `stats.tsx` / `idiom-stats.tsx` / `history-stats.tsx` / `term-stats.tsx` are thin config wrappers; the words page alone passes an `explanation` getter to enable that filter.
-- `src/lib/match.ts` — shared two-direction match-quiz pattern (`MatchMode`, `matchPrompt`/`matchAnswer`, `buildMatchOptions(entries, correct, mode, count, distractorPool?)`). `term-trainer.tsx` restricts distractors to the **same historical group** as the correct term (so options are plausible, not obviously wrong era); the quiz direction is chosen **before** the session starts — `QuizModeSwitch` in `src/components/ui/quiz-mode-switch.tsx` lives on the home page's terms panel and is passed to `/term-test` via router state (`termMode`). Pattern intended to be reused when idioms gain the same feature.
-- `src/lib/session-store.ts` — `createSessionStore<T>()` factory: localStorage key + max-sessions cap live here; `useSessionStore()` wraps it with `useSyncExternalStore`.
-- `src/lib/session-stats.ts` — `aggregateStats()` (seeds + sessions → per-item stats) and `pickProblematic()` (worst-ratio items, capped).
-- `src/hooks/use-timer.ts` — elapsed-milliseconds timer + `now()` callback.
-- `src/lib/format.ts` — `formatTime()` (mm:ss).
+- `apps/web/src/components/trainer-shell.tsx` — progress header, timer, ✓/✗ counts, feedback + next button. Trainers inject their question UI as `children`.
+- `apps/web/src/components/session-results-shell.tsx` — results header (%, ✓/✗, time) + restart/home buttons + scrollable list; rows injected via `renderRow`.
+- `apps/web/src/components/session-page.tsx` — generic trainer→results page flow: reads indices from router state, redirects to `/` when empty, saves the session on completion. `test.tsx` / `idiom-test.tsx` / `history-test.tsx` / `term-test.tsx` are thin config wrappers.
+- `apps/web/src/components/stats-page.tsx` — generic stats page (sort, group/status/attempted/explanation/date filters, totals, clear). `stats.tsx` / `idiom-stats.tsx` / `history-stats.tsx` / `term-stats.tsx` are thin config wrappers; the words page alone passes an `explanation` getter to enable that filter.
+- `apps/web/src/lib/match.ts` — shared two-direction match-quiz pattern (`MatchMode`, `matchPrompt`/`matchAnswer`, `buildMatchOptions(entries, correct, mode, count, distractorPool?)`). `term-trainer.tsx` restricts distractors to the **same historical group** as the correct term (so options are plausible, not obviously wrong era); the quiz direction is chosen **before** the session starts — `QuizModeSwitch` in `apps/web/src/components/ui/quiz-mode-switch.tsx` lives on the home page's terms panel and is passed to `/term-test` via router state (`termMode`). Pattern intended to be reused when idioms gain the same feature.
+- `apps/web/src/lib/session-store.ts` — `createSessionStore<T>()` factory: localStorage key + max-sessions cap live here; `useSessionStore()` wraps it with `useSyncExternalStore`.
+- `apps/web/src/lib/session-stats.ts` — `aggregateStats()` (seeds + sessions → per-item stats) and `pickProblematic()` (worst-ratio items, capped).
+- `apps/web/src/hooks/use-timer.ts` — elapsed-milliseconds timer + `now()` callback.
+- `apps/web/src/lib/format.ts` — `formatTime()` (mm:ss).
 
 ## Testing
 
-- Vitest, tests colocated as `*.test.ts` (`src/lib/stress.test.ts`, `src/data/words.test.ts`, `src/lib/idioms.test.ts`, `src/data/idioms.test.ts`, `src/lib/history.test.ts`, `src/data/history.test.ts`, `src/lib/terms.test.ts`, `src/data/terms.test.ts`).
+- Vitest, tests colocated as `*.test.ts` (`apps/web/src/lib/stress.test.ts`, `apps/web/src/data/words.test.ts`, `apps/web/src/lib/idioms.test.ts`, `apps/web/src/data/idioms.test.ts`, `apps/web/src/lib/history.test.ts`, `apps/web/src/data/history.test.ts`, `apps/web/src/lib/terms.test.ts`, `apps/web/src/data/terms.test.ts`).
 - No separate `__tests__/` dir, no coverage config.
 - `words.test.ts` validates dataset integrity (every entry has stress marker, stress indices in bounds, homonyms have explanations, valid characters).
 - `idioms.test.ts` validates dataset integrity (every entry splits into idiom + definition, no duplicate idioms, no stray whitespace).
@@ -103,7 +129,7 @@ All trainers (words + idioms + history + terms) are thin wrappers around shared 
 
 ## State persistence
 
-- Session storage settings (storage key, max sessions) are defined in `createSessionStore()` in `src/lib/session-store.ts`.
+- Session storage settings (storage key, max sessions) are defined in `createSessionStore()` in `apps/web/src/lib/session-store.ts`.
 - Word sessions stored in `localStorage` under key `nagolosy-sessions`, max 5 sessions.
 - Idiom sessions stored under key `nagolosy-idiom-sessions`, max 5 sessions (separate from word sessions).
 - History sessions stored under key `nagolosy-history-sessions`, max 5 sessions (separate from word/idiom sessions).
@@ -112,5 +138,11 @@ All trainers (words + idioms + history + terms) are thin wrappers around shared 
 
 ## Deployment
 
-- SPA deployed on Vercel: `vercel.json` rewrites all routes to `/index.html`.
+- Vercel project root is the repo root. `vercel.json` sets:
+  - `buildCommand: bun run build` (Turborepo builds both workspaces), `outputDirectory: apps/web/dist`
+  - `api/[...all].ts` as an `@vercel/node` serverless function behind `/api/*`
+  - SPA fallback rewrite to `/index.html` (filesystem + function routes take precedence)
+- On Vercel the SPA is served from the CDN; the Express app runs only as the `/api` function.
+- Self-hosting the Node server: `bun run build` then `bun --cwd apps/server run start` —
+  Express serves `apps/web/dist` plus `/api`.
 - `.env*` files are gitignored (Vercel OIDC token present in local `.env.local`).

@@ -1,21 +1,28 @@
-# React + TypeScript + Vite + shadcn/ui
+# Наголоси НМТ
 
-This is a template for a new Vite project with React, TypeScript, and shadcn/ui.
+Ukrainian word-stress training SPA, organised as a Turborepo monorepo.
 
-## Adding components
+```
+apps/web      Vite + React SPA
+apps/server   Express server (API + optional static SPA serving)
+api/          Vercel serverless entry for the Express app
+```
 
-To add components to your app, run the following command:
+## Development
 
 ```bash
-npx shadcn@latest add button
+bun install
+bun dev        # Vite on :5173, Express on :3001 (Vite proxies /api)
 ```
 
-This will place the ui components in the `src/components` directory.
+## Build and run
 
-## Using components
-
-To use the components in your app, import them as follows:
-
-```tsx
-import { Button } from "@/components/ui/button"
+```bash
+bun run build  # build web + server
+bun start      # Express serves apps/web/dist and /api on :3001
 ```
+
+## Deploy
+
+Deployed on Vercel from the repo root: static SPA output from `apps/web/dist` plus the
+Express app as an `@vercel/node` function under `/api`. See `vercel.json` and `AGENTS.md`.

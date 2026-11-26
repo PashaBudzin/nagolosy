@@ -1,3 +1,11 @@
 {
+  "buildCommand": "bun run build",
+  "installCommand": "bun install",
+  "outputDirectory": "apps/web/dist",
+  "functions": {
+    "api/[...all].ts": {
+      "runtime": "@vercel/node"
+    }
+  },
   "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }]
 }

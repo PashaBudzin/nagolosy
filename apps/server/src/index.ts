@@ -1,0 +1,16 @@
+import path from "node:path"
+import { fileURLToPath } from "node:url"
+
+import { createApp } from "./app.ts"
+
+const currentDir = path.dirname(fileURLToPath(import.meta.url))
+
+const staticDir =
+  process.env.STATIC_DIR ?? path.resolve(currentDir, "../../web/dist")
+const port = Number(process.env.PORT ?? 3001)
+
+const app = createApp({ staticDir })
+
+app.listen(port, () => {
+  console.log(`Server listening on http://localhost:${port}`)
+})
