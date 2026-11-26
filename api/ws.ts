@@ -1,5 +1,5 @@
 import { createServer } from "node:http"
-import { attachRealtime } from "../apps/server/src/realtime.ts"
+import { attachRealtime } from "../apps/server/dist/realtime.js"
 
 // Vercel Functions serve WebSockets when the default export is a Node HTTP
 // server. See https://vercel.com/docs/functions/websockets.

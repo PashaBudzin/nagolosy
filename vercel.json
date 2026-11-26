@@ -4,6 +4,14 @@
   "installCommand": "bun install",
   "outputDirectory": "apps/web/dist",
   "fluid": true,
+  "functions": {
+    "api/[...all].ts": {
+      "includeFiles": "apps/server/dist/**"
+    },
+    "api/ws.ts": {
+      "includeFiles": "apps/server/dist/**"
+    }
+  },
   "rewrites": [
     { "source": "/api/:path*", "destination": "/api/:path*" },
     { "source": "/(.*)", "destination": "/index.html" }

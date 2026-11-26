@@ -88,6 +88,9 @@ vercel.json             # Vercel build/output/functions config
 - Dark mode: `.dark` class on `<html>`. Pressing `d` key toggles (handled in `ThemeProvider`).
 - Express app is built by `createApp()` in `apps/server/src/app.ts`, so the same code powers the
   local/Node server (`apps/server/src/index.ts`) and the Vercel function (`api/[...all].ts`).
+- Vercel only transpiles the `api/*.ts` entrypoints, not imported `.ts` files outside `api/`.
+  Therefore the functions import compiled `apps/server/dist/*.js`, and `vercel.json` includes
+  that folder via `includeFiles`. Run `bun run build` before packaging functions.
 - In dev, Vite proxies `/api` (HTTP and WebSocket upgrades) to Express on port `3001`; templates should call same-origin `/api/...`.
 - Group competition protocol is duplicated: `apps/server/src/protocol.ts` and
   `apps/web/src/lib/competition-types.ts`. Update both together.
